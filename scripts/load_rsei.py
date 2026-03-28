@@ -1,13 +1,13 @@
-"""Load, inspect, and clean RSEI (Risk-Screening Environmental Indicators) datasets.
+"""Load, inspect, and clean RSEI v23.12 datasets into Parquet.
 
 Input files expected in DATA_RAW_DIR:
-    facility.csv        — facility-level metadata (location, SIC, NAICS, etc.)
-    releases.csv        — chemical release quantities per facility per year
-    elements.csv        — chemical / element reference table
-    water_microdata.csv — water-pathway micro-level score data (largest file)
+    aggmicro2022_2022.csv          — grid-cell RSEI scores (~10M rows)
+    facility_data_rsei_v2312.csv   — facility metadata (~64k rows)
+    chemical_data_rsei_v2312.csv   — chemical reference table (~823 rows)
+    media_data_rsei_v2312.csv      — release media lookup (~47 rows)
 
 Output:
-    Cleaned Parquet files written to DATA_PROCESSED_DIR, one per dataset.
+    Cleaned Parquet files written to DATA_PROCESSED_DIR.
 
 Usage:
     python scripts/load_rsei.py
@@ -31,74 +31,183 @@ DATA_RAW_DIR = ROOT / "data" / "raw"
 DATA_PROCESSED_DIR = ROOT / "data" / "processed"
 
 # ---------------------------------------------------------------------------
-# Per-dataset configuration
+# Dataset configurations
 # ---------------------------------------------------------------------------
-# dtype hints reduce memory and prevent silent mixed-type inference on large files.
-# low_memory=False is the pandas default safety net; explicit dtypes are better.
 
 DATASET_CONFIG: dict[str, dict] = {
+
+    "aggmicro": {
+        "file": "aggmicro2022_2022.csv",
+        "encoding": "utf-8",
+        "dtype": {
+            "GridCode":    "int8",      # always 14 in this file
+            "X":           "int16",
+            "Y":           "int16",
+            "NumFacs":     "int16",
+            "NumReleases": "int32",
+            "NumChems":    "int16",
+            "ToxConc":     "float64",
+            "Score":       "float64",
+            "Pop":         "float32",
+            "CTConc":      "float64",
+            "NCTConc":     "float64",
+        },
+        "chunksize": 500_000,
+    },
+
     "facility": {
-        "file": "facility.csv",
+        "file": "facility_data_rsei_v2312.csv",
+        "encoding": "utf-8",
         "dtype": {
-            "FacilityID":      "string",
-            "TRIFacilityID":   "string",
-            "FacilityName":    "string",
-            "State":           "string",
-            "County":          "string",
-            "ZIPCode":         "string",
-            "Latitude":        "float32",
-            "Longitude":       "float32",
-            "SICCode":         "string",
-            "NAICSCode":       "string",
-            "IndustryType":    "string",
+            "FacilityID":               "string",
+            "FacilityNumber":           "Int32",
+            "FRSID":                    "Int64",
+            "Latitude":                 "float32",
+            "Longitude":                "float32",
+            "GridCode":                 "Int8",
+            "X":                        "Int16",
+            "Y":                        "Int16",
+            "LatLongSource":            "string",
+            "LLYear":                   "Int16",
+            "LLNotes":                  "string",
+            "RadialDistance":           "float32",
+            "FacilityName":             "string",
+            "Street":                   "string",
+            "City":                     "string",
+            "County":                   "string",
+            "State":                    "string",
+            "ZIPCode":                  "string",    # keep as string — leading zeros
+            "ZIP9":                     "string",
+            "FIPS":                     "string",
+            "STFIPS":                   "string",
+            "DUNS":                     "string",
+            "ParentDUNS":               "string",
+            "ParentName":               "string",
+            "StandardizedParentCompany":"string",
+            "Region":                   "Int8",
+            "FederalFacilityFlag":      "string",
+            "FederalAgencyName":        "string",
+            "PublicContactName":        "string",
+            "PublicContactPhone":       "string",
+            "PublicContactPhoneExtension": "string",
+            "PublicContactEmail":       "string",
+            "StackHeight":              "float32",
+            "StackVelocity":            "float32",
+            "StackDiameter":            "float32",
+            "StackTemperature":         "float32",
+            "StackHeightSource":        "string",
+            "StackVelocitySource":      "string",
+            "StackDiameterSource":      "string",
+            "StackTemperatureSource":   "string",
+            "StackHeightNEIYear":       "Int16",
+            "StackVelocityNEIYear":     "Int16",
+            "StackDiameterNEIYear":     "Int16",
+            "StackTemperatureNEIYear":  "Int16",
+            "ChromHexPercent":          "float32",
+            "ChromSource":              "string",
+            "ModeledNAICS":             "string",
+            "NAICSCode3Digit":          "string",
+            "NAICSCode4Digit":          "string",
+            "NAICSCode5Digit":          "string",
+            "NAICS1":                   "string",
+            "NAICS2":                   "string",
+            "NAICS3":                   "string",
+            "NAICS4":                   "string",
+            "NAICS5":                   "string",
+            "NAICS6":                   "string",
+            "HEM3ID":                   "Int32",
+            "DistanceToHEM3":           "float32",
+            "LLConfirmed":              "boolean",
+            "WaterReleases":            "boolean",
+            "ModeledReleases":          "boolean",
         },
-        # Columns that should become pandas nullable integers after load
-        "int_cols": [],
-        "date_cols": [],
-        "chunksize": None,   # small enough to load in one shot
-    },
-    "releases": {
-        "file": "releases.csv",
-        "dtype": {
-            "FacilityID":      "string",
-            "CASNumber":       "string",
-            "ChemicalID":      "string",
-            "Year":            "Int16",
-            "MediaCode":       "string",
-            "ReleaseAmount":   "float64",
-            "Units":           "string",
-        },
-        "int_cols": ["Year"],
-        "date_cols": [],
-        "chunksize": 200_000,
-    },
-    "elements": {
-        "file": "elements.csv",
-        "dtype": {
-            "ChemicalID":      "string",
-            "CASNumber":       "string",
-            "ChemicalName":    "string",
-            "ChemicalCategory":"string",
-            "IsMetal":         "boolean",
-        },
-        "int_cols": [],
-        "date_cols": [],
         "chunksize": None,
     },
-    "water_microdata": {
-        "file": "water_microdata.csv",
+
+    "chemical": {
+        "file": "chemical_data_rsei_v2312.csv",
+        "encoding": "utf-8-sig",          # file has BOM
         "dtype": {
-            "FacilityID":      "string",
-            "ChemicalID":      "string",
-            "Year":            "Int16",
-            "CensusBlockID":   "string",
-            "Population":      "Int32",
-            "Concentration":   "float64",
-            "RSEIScore":       "float64",
+            "CASNumber":            "string",
+            "CASStandard":          "string",
+            "ChemicalNumber":       "Int16",
+            "TRIChemID":            "string",
+            "Chemical":             "string",
+            "FirstReportingYear":   "Int16",
+            "ToxicitySource":       "string",
+            "RfCInhale":            "float64",
+            "RfCUF":                "float64",
+            "RfCMF":                "float64",
+            "RfCConf":              "string",
+            "RfCSource":            "string",
+            "RfCToxWeight":         "float64",
+            "RFDOral":              "float64",
+            "RfDUF":                "float64",
+            "RfDMF":                "float64",
+            "RfDConf":              "string",
+            "RfDSource":            "string",
+            "RfDToxWeight":         "float64",
+            "UnitRiskInhale":       "float64",
+            "QSTAROral":            "float64",
+            "WOE":                  "string",
+            "IURToxWeight":         "float64",
+            "OSFToxWeight":         "float64",
+            "ITW":                  "float64",
+            "OTW":                  "float64",
+            "ToxicityClassOral":    "string",
+            "ToxicityClassInhale":  "string",
+            "ToxicityCategory":     "string",
+            "AirDecay":             "float64",
+            "Koc":                  "float64",
+            "H2ODecay":             "float64",
+            "LOGKow":               "float64",
+            "Kd":                   "float64",
+            "WaterSolubility":      "float64",
+            "POTWPartitionRemoval": "float64",
+            "POTWPartitionSludge":  "float64",
+            "POTWPartitionVolat":   "float64",
+            "POTWPartitionBiod":    "float64",
+            "IncineratorDRE":       "float64",
+            "BCF":                  "float64",
+            "Henrys":               "float64",
+            "MCL":                  "float64",
+            "MolecularWeight":      "float64",
+            "HAPFlag":              "boolean",
+            "RMPFlag":              "boolean",
+            "PriorityPollutantFlag":"boolean",
+            "SDWAFlag":             "boolean",
+            "CERCLAFlag":           "boolean",
+            "OSHACarcinogens":      "boolean",
+            "ExpansionFlag":        "boolean",
+            "PBTFlag":              "boolean",
+            "TSCAFlag":             "boolean",
+            "PFASFlag":             "boolean",
+            "Metal":                "Int8",
+            "HasTox":               "Int8",
+            "MaxTW":                "float64",
+            "MaxNC":                "float64",
+            "MaxC":                 "float64",
         },
-        "int_cols": ["Year", "Population"],
-        "date_cols": [],
-        "chunksize": 500_000,   # largest file — stream in chunks
+        "chunksize": None,
+    },
+
+    "media": {
+        "file": "media_data_rsei_v2312.csv",
+        "encoding": "utf-8",
+        "dtype": {
+            "Media":                    "Int8",
+            "MediaText":                "string",
+            "TRIEnvironmentalMedium":   "string",
+            "Itw":                      "Int8",
+            "Otw":                      "Int8",
+            "Mtw":                      "Int8",
+            "MediaCode":                "Int8",
+            "TRICode":                  "string",
+            "TRICategory":              "string",
+            "LongDescription":          "string",
+            "AggDescription":           "string",
+        },
+        "chunksize": None,
     },
 }
 
@@ -106,129 +215,65 @@ DATASET_CONFIG: dict[str, dict] = {
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _read_chunked(path: Path, config: dict) -> pd.DataFrame:
-    """Read a large CSV in chunks and concatenate.
-
-    Parameters
-    ----------
-    path:
-        Path to the CSV file.
-    config:
-        Dataset config dict from DATASET_CONFIG.
-
-    Returns
-    -------
-    pd.DataFrame
-    """
-    chunks: list[pd.DataFrame] = []
-    reader = pd.read_csv(
-        path,
-        dtype=config["dtype"],
-        chunksize=config["chunksize"],
-        low_memory=False,
-        encoding="utf-8",
-        encoding_errors="replace",  # don't crash on stray non-UTF-8 bytes
-        on_bad_lines="warn",
-    )
-    for i, chunk in enumerate(reader):
-        chunks.append(chunk)
-        if (i + 1) % 10 == 0:
-            rows_so_far = sum(len(c) for c in chunks)
-            print(f"    ... {rows_so_far:,} rows loaded so far")
-
-    return pd.concat(chunks, ignore_index=True)
-
-
-def _read_single(path: Path, config: dict) -> pd.DataFrame:
-    """Read a small CSV in one shot."""
-    return pd.read_csv(
-        path,
+def _read(path: Path, config: dict) -> pd.DataFrame:
+    """Read a CSV — chunked if chunksize is set, single-pass otherwise."""
+    common = dict(
         dtype=config["dtype"],
         low_memory=False,
-        encoding="utf-8",
+        encoding=config.get("encoding", "utf-8"),
         encoding_errors="replace",
         on_bad_lines="warn",
     )
 
+    if config["chunksize"]:
+        chunks: list[pd.DataFrame] = []
+        reader = pd.read_csv(path, chunksize=config["chunksize"], **common)
+        for i, chunk in enumerate(reader):
+            chunks.append(chunk)
+            if (i + 1) % 5 == 0:
+                print(f"    ... {sum(len(c) for c in chunks):,} rows loaded")
+        return pd.concat(chunks, ignore_index=True)
 
-def _clean(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """Apply post-load cleaning common to all datasets.
+    return pd.read_csv(path, **common)
 
-    Steps
-    -----
-    1. Strip leading/trailing whitespace from all string columns.
-    2. Normalise column names to snake_case.
-    3. Drop fully-duplicate rows.
-    4. Cast declared integer columns to pandas nullable Int type.
-    5. Parse declared date columns.
-    """
-    # 1. Strip whitespace in string/object columns
-    str_cols = df.select_dtypes(include=["object", "string"]).columns
-    for col in str_cols:
-        df[col] = df[col].str.strip()
 
-    # 2. snake_case column names
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.lower()
-        .str.replace(r"[\s\-/]+", "_", regex=True)
-        .str.replace(r"[^\w]", "", regex=True)
-    )
-
-    # 3. Drop fully-duplicate rows
+def _clean(df: pd.DataFrame) -> pd.DataFrame:
+    """Shared post-load cleaning: strip whitespace, drop full duplicates."""
+    for col in df.columns:
+        if df[col].dtype == "object" or isinstance(df[col].dtype, pd.StringDtype):
+            try:
+                df[col] = df[col].str.strip()
+            except AttributeError:
+                pass
     before = len(df)
     df = df.drop_duplicates()
     dropped = before - len(df)
     if dropped:
         print(f"    Dropped {dropped:,} duplicate rows")
-
-    # 4. Nullable integer casts (column names already snake_cased above)
-    for col in config["int_cols"]:
-        snake_col = col.lower()
-        if snake_col in df.columns:
-            df[snake_col] = pd.to_numeric(df[snake_col], errors="coerce").astype("Int64")
-
-    # 5. Date parsing
-    for col in config["date_cols"]:
-        snake_col = col.lower()
-        if snake_col in df.columns:
-            df[snake_col] = pd.to_datetime(df[snake_col], errors="coerce")
-
     return df
 
 
 def _print_info(name: str, df: pd.DataFrame) -> None:
-    """Print column names, dtypes, shape, and null counts."""
-    print(f"\n{'=' * 60}")
+    """Print shape, memory, and a per-column summary."""
+    print(f"\n{'=' * 62}")
     print(f"  {name.upper()}  —  {df.shape[0]:,} rows × {df.shape[1]} columns")
-    print(f"{'=' * 60}")
-    print(f"  Memory usage: {df.memory_usage(deep=True).sum() / 1_048_576:.1f} MB")
-    print()
+    print(f"  Memory: {df.memory_usage(deep=True).sum() / 1_048_576:.1f} MB")
+    print(f"{'=' * 62}")
 
-    col_width = max(len(c) for c in df.columns) + 2
-    print(f"  {'Column':<{col_width}} {'Dtype':<14} {'Non-null':>10}  {'Null%':>6}")
-    print(f"  {'-' * (col_width + 35)}")
+    col_w = max(len(c) for c in df.columns) + 2
+    print(f"  {'Column':<{col_w}} {'Dtype':<12} {'Non-null':>10}  {'Null%':>6}")
+    print(f"  {'-' * (col_w + 33)}")
     for col in df.columns:
         n_null = df[col].isna().sum()
-        null_pct = 100 * n_null / len(df) if len(df) else 0
-        print(
-            f"  {col:<{col_width}} {str(df[col].dtype):<14} "
-            f"{len(df) - n_null:>10,}  {null_pct:>5.1f}%"
-        )
+        pct = 100 * n_null / len(df) if len(df) else 0
+        print(f"  {col:<{col_w}} {str(df[col].dtype):<12} {len(df)-n_null:>10,}  {pct:>5.1f}%")
 
-    print()
-    # Numeric summaries for key float/int columns
-    num_cols = df.select_dtypes(include=["number"]).columns.tolist()
+    num_cols = df.select_dtypes(include="number").columns.tolist()
     if num_cols:
+        print()
         print("  Numeric summary:")
-        print(
-            df[num_cols]
-            .describe()
-            .round(4)
-            .to_string(max_cols=8)
-            .replace("\n", "\n  ")
-        )
+        summary = df[num_cols].describe().round(4)
+        print("  " + summary.to_string().replace("\n", "\n  "))
     print()
 
 
@@ -237,13 +282,13 @@ def _print_info(name: str, df: pd.DataFrame) -> None:
 # ---------------------------------------------------------------------------
 
 def load_all(raw_dir: Path, out_dir: Path) -> dict[str, pd.DataFrame]:
-    """Load, clean, inspect, and save all RSEI datasets.
+    """Load, clean, inspect, and save all four RSEI datasets.
 
     Parameters
     ----------
-    raw_dir:
+    raw_dir : Path
         Directory containing the raw CSV files.
-    out_dir:
+    out_dir : Path
         Directory where Parquet outputs are written.
 
     Returns
@@ -261,33 +306,25 @@ def load_all(raw_dir: Path, out_dir: Path) -> dict[str, pd.DataFrame]:
             print(f"\n[SKIP] {config['file']} not found in {raw_dir}")
             continue
 
-        print(f"\n[LOAD] {name}  ← {path.name}")
+        print(f"\n[LOAD] {name}  ←  {path.name}")
         t0 = time.perf_counter()
+        df = _read(path, config)
+        print(f"    Read {len(df):,} rows in {time.perf_counter() - t0:.1f}s")
 
-        if config["chunksize"]:
-            df = _read_chunked(path, config)
-        else:
-            df = _read_single(path, config)
-
-        elapsed_read = time.perf_counter() - t0
-        print(f"    Read  {len(df):,} rows in {elapsed_read:.1f}s")
-
-        df = _clean(df, config)
-
+        df = _clean(df)
         _print_info(name, df)
 
-        # Save to Parquet
         out_path = out_dir / f"{name}.parquet"
         df.to_parquet(out_path, index=False, engine="pyarrow", compression="snappy")
         size_mb = out_path.stat().st_size / 1_048_576
-        print(f"  Saved → {out_path.relative_to(out_dir.parent.parent)}  ({size_mb:.1f} MB)")
+        print(f"  Saved → {out_path.name}  ({size_mb:.1f} MB)")
 
         results[name] = df
 
-    print(f"\n{'=' * 60}")
-    print(f"  Done.  {len(results)}/{len(DATASET_CONFIG)} datasets loaded.")
+    print(f"\n{'=' * 62}")
+    print(f"  Done. {len(results)}/{len(DATASET_CONFIG)} datasets loaded.")
     print(f"  Parquet files in: {out_dir}")
-    print(f"{'=' * 60}\n")
+    print(f"{'=' * 62}\n")
 
     return results
 
@@ -297,19 +334,9 @@ def load_all(raw_dir: Path, out_dir: Path) -> dict[str, pd.DataFrame]:
 # ---------------------------------------------------------------------------
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Load and clean RSEI CSV datasets.")
-    p.add_argument(
-        "--raw-dir",
-        type=Path,
-        default=DATA_RAW_DIR,
-        help=f"Directory containing raw CSVs (default: {DATA_RAW_DIR})",
-    )
-    p.add_argument(
-        "--out-dir",
-        type=Path,
-        default=DATA_PROCESSED_DIR,
-        help=f"Output directory for Parquet files (default: {DATA_PROCESSED_DIR})",
-    )
+    p = argparse.ArgumentParser(description="Load and clean RSEI v23.12 CSV datasets.")
+    p.add_argument("--raw-dir", type=Path, default=DATA_RAW_DIR)
+    p.add_argument("--out-dir", type=Path, default=DATA_PROCESSED_DIR)
     return p.parse_args()
 
 
