@@ -48,7 +48,8 @@ class SedimentExchange:
         np.ndarray
             (nx, ny) volumetric source term (µg L⁻¹ s⁻¹).
         """
-        raise NotImplementedError
+        safe_depth = np.maximum(depth, 1e-6)
+        return (-self.k_d * c_dissolved + self.k_r * c_sediment) / safe_depth
 
     def update_sediment(
         self,
@@ -72,4 +73,5 @@ class SedimentExchange:
         np.ndarray
             Updated sediment concentration (µg kg⁻¹).
         """
-        raise NotImplementedError
+        updated = c_sediment + dt * (self.k_d * c_dissolved - self.k_r * c_sediment)
+        return np.maximum(updated, 0.0)

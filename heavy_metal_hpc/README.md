@@ -1,12 +1,11 @@
 # heavy_metal_hpc
 
-High-performance simulation of heavy metal transport and remediation optimization
-in **Baiyangdian Lake**, China.
+High-performance digital twin scaffold for arsenic transport and remediation
+optimization in bodies of water in Bangladesh.
 
 The project couples a physics-based advection-diffusion-reaction model with
-Bayesian parameter inference, ensemble uncertainty quantification, and
-gradient-free / gradient-based remediation optimization — all designed to run
-efficiently on multi-core CPUs and GPU clusters via MPI, Dask, and JAX/PyTorch.
+inverse parameter estimation, ensemble uncertainty quantification, Gemini-based
+forcing interpretation, and Auth0-secured AI-agent workflows.
 
 ---
 
@@ -58,6 +57,33 @@ python scripts/run_optimization.py --budget 1e6
 ```
 
 ---
+
+## Gemini and Auth0
+
+The repo now includes:
+
+- `src/ai/gemini.py`: a lightweight Gemini REST client for structured planning
+  and forcing summaries.
+- `src/agents/auth0.py`: Auth0 context helpers for user-scoped API access in AI
+  agents.
+- `src/api/loader.py`: a unified forcing loader that can synthesize hydrology,
+  fetch Open-Meteo weather, and ask Gemini for an operational summary.
+
+Set these environment variables before running secured agent flows:
+
+```bash
+export GEMINI_API_KEY=...
+export AUTH0_CLIENT_ID=...
+export AUTH0_CLIENT_SECRET=...
+```
+
+For the browser UI demo:
+
+```bash
+python scripts/run_web_ui.py --config config/default.yaml
+```
+
+Then open `http://127.0.0.1:5001`, click `Sign In With Auth0`, finish login in the browser, and click `Generate Brief`.
 
 ## Key dependencies
 

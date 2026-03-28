@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..grid.mesh import StructuredMesh
+from .operators import apply_neumann_bc, laplacian
 
 
 class TransportModel:
@@ -52,7 +53,22 @@ class TransportModel:
         np.ndarray
             Updated (nx, ny) concentration field after advection.
         """
-        raise NotImplementedError
+        c = concentration
+        dx = self.mesh.dx
+        dy = self.mesh.dy
+
+        flux_x = np.where(
+            u >= 0.0,
+            u * (c - np.roll(c, 1, axis=0)) / dx,
+            u * (np.roll(c, -1, axis=0) - c) / dx,
+        )
+        flux_y = np.where(
+            v >= 0.0,
+            v * (c - np.roll(c, 1, axis=1)) / dy,
+            v * (np.roll(c, -1, axis=1) - c) / dy,
+        )
+        updated = c - dt * (flux_x + flux_y)
+        return apply_neumann_bc(updated)
 
     def diffuse(self, concentration: np.ndarray, dt: float) -> np.ndarray:
         """Explicit central-difference diffusion step.
@@ -69,7 +85,10 @@ class TransportModel:
         np.ndarray
             Updated (nx, ny) field after diffusion.
         """
-        raise NotImplementedError
+        updated = concentration + dt * self.diffusivity * laplacian(
+            concentration, dx=self.mesh.dx, dy=self.mesh.dy
+        )
+        return apply_neumann_bc(updated)
 
     def react(
         self,

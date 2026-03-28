@@ -12,12 +12,12 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-from loguru import logger
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.utils.config import load_config
+from src.utils.logging import logger
 from src.grid.mesh import StructuredMesh
 from src.model.simulator import Simulator
 from src.model.state import SimulationState

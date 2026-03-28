@@ -6,6 +6,9 @@ import numpy as np
 import pytest
 
 from src.grid.mesh import StructuredMesh
+from src.model.parameters import NumericalParameters, PhysicalParameters
+from src.model.simulator import Simulator
+from src.model.state import SimulationState
 from src.physics.transport import TransportModel
 from src.physics.operators import laplacian, gradient_x, gradient_y, apply_neumann_bc
 
@@ -84,3 +87,38 @@ class TestTransportModel:
         dt = 30.0
         c1 = transport.react(c0, source, dt)
         assert c1.sum() == pytest.approx(small_mesh.n_cells * dt)
+
+
+def test_simulator_applies_source_and_remediation_terms() -> None:
+    """External source fields should increase concentration while remediation reduces it."""
+    mesh = StructuredMesh(x_min=0, x_max=10, y_min=0, y_max=10, nx=4, ny=4)
+    simulator = Simulator(
+        mesh,
+        phys=PhysicalParameters(diffusivity=1e-6, k_deposition=1e-6, k_resuspension=1e-6, decay_rate=0.0),
+        num=NumericalParameters(dt=10.0, n_steps=2, output_interval=1),
+    )
+    initial = SimulationState(
+        concentration=np.zeros(mesh.shape),
+        sediment_concentration=np.zeros(mesh.shape),
+        u=np.zeros(mesh.shape),
+        v=np.zeros(mesh.shape),
+        depth=np.ones(mesh.shape),
+    )
+    source = np.ones((2, *mesh.shape)) * 0.2
+    remediation = np.zeros_like(source)
+    remediation[1] = 0.1
+    history = simulator.run(
+        initial,
+        forcing={
+            "u": np.zeros((2, *mesh.shape)),
+            "v": np.zeros((2, *mesh.shape)),
+            "source": source,
+            "remediation": remediation,
+        },
+    )
+
+    first = history.snapshots[1].concentration.mean()
+    second = history.snapshots[2].concentration.mean()
+    assert first > 0.0
+    assert second > first
+    assert second < first + simulator.num.dt * 0.2

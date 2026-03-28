@@ -1,1 +1,1 @@
-"""heavy_metal_hpc — HPC simulation package for heavy metal transport in Baiyangdian Lake."""
+"""heavy_metal_hpc — HPC digital twin scaffold for arsenic transport and remediation."""
