@@ -7,7 +7,7 @@ from loguru import logger
 from ..grid.mesh import StructuredMesh
 from ..physics.transport import TransportModel
 from ..physics.sediment import SedimentExchange
-from .parameters import PhysicalParameters, NumericalParameters
+from .parameters import ModelParameters
 from .state import SimulationState, StateHistory
 
 
