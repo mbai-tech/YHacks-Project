@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
+
+try:
+    from pydantic import field_validator
+except ImportError:  # pragma: no cover - exercised in Pydantic v1 environments
+    from pydantic import validator as field_validator
 
 
 class PhysicalParameters(BaseModel):
@@ -43,8 +48,8 @@ class NumericalParameters(BaseModel):
 
     @field_validator("output_interval")
     @classmethod
-    def _output_divides_steps(cls, v: int, info) -> int:
-        n = info.data.get("n_steps")
+    def _output_divides_steps(cls, v: int, values) -> int:
+        n = getattr(values, "data", values).get("n_steps")
         if n and n % v != 0:
             raise ValueError("output_interval must divide n_steps evenly")
         return v

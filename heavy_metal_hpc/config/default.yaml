@@ -1,0 +1,37 @@
+name: bangladesh-arsenic-demo
+domain:
+  x_min: 0.0
+  x_max: 10000.0
+  y_min: 0.0
+  y_max: 10000.0
+  nx: 32
+  ny: 32
+time:
+  start_date: 2026-06-01
+  end_date: 2026-06-07
+physics:
+  diffusivity: 0.002
+  k_deposition: 0.00002
+  k_resuspension: 0.000001
+  partition_coefficient: 1200.0
+  decay_rate: 0.0
+numerics:
+  dt: 300.0
+  n_steps: 288
+  output_interval: 24
+data_sources:
+  weather_base_url: https://api.open-meteo.com/v1/forecast
+  hydrology_base_url: synthetic
+  cache_dir: data/cache
+gemini:
+  enabled: true
+  api_key_env: GEMINI_API_KEY
+  model: gemini-2.5-flash
+auth0:
+  enabled: true
+  domain: dev-vum3lsh2tqfpn2mn.us.auth0.com
+  audience: https://yhacks2026-api
+  client_id_env: AUTH0_CLIENT_ID
+  client_secret_env: AUTH0_CLIENT_SECRET
+output_dir: data/processed
+random_seed: 42

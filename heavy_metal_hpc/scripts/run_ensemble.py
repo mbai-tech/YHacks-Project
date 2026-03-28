@@ -13,7 +13,6 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-from loguru import logger
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -26,6 +25,7 @@ from src.model.parameters import PhysicalParameters
 from src.ensemble.sampler import MonteCarloSampler
 from src.ensemble.runner import EnsembleRunner
 from src.utils.io import save_hdf5
+from src.utils.logging import logger
 
 
 def parse_args() -> argparse.Namespace:
