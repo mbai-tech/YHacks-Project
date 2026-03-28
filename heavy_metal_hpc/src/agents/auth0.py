@@ -189,3 +189,13 @@ class Auth0AgentContext:
         )
         response.raise_for_status()
         return response.json()
+
+    def build_logout_url(self, return_to: str) -> str:
+        """Build an Auth0 logout URL that also clears the upstream SSO session."""
+        query = urlencode(
+            {
+                "client_id": self.client_id,
+                "returnTo": return_to,
+            }
+        )
+        return f"https://{self.domain}/v2/logout?{query}"
