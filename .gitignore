@@ -1,5 +1,6 @@
 data/raw/*
-  data/processed/*
-  !data/raw/.gitkeep
-  !data/processed/.gitkeep
-  EOF
+data/processed/*
+data/interim/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/interim/.gitkeep
