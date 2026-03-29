@@ -26,6 +26,7 @@ const state = {
   mapPayload: null,
   mapInstance: null,
   mapLayers: {},
+  activeView: "map",
   selection: null,
   selectionScenario: null,
   selectionBaseline: null,
@@ -38,6 +39,26 @@ const state = {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function activateView(view) {
+  state.activeView = view;
+  document.querySelectorAll(".view-tab").forEach((button) => {
+    const isActive = button.dataset.view === view;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+
+  document.querySelectorAll("[data-view-panel]").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.viewPanel === view);
+  });
+
+  if (view === "map" && state.mapInstance) {
+    window.setTimeout(() => {
+      state.mapInstance.invalidateSize();
+      drawMap();
+    }, 0);
+  }
 }
 
 function buildScenarioQuery() {
@@ -355,7 +376,7 @@ function renderLeafletMap() {
         return [
           point.latitude,
           point.longitude,
-          clamp(normalized ** 1.85, 0.2, 1),
+          clamp(normalized ** 1.55, 0.28, 1),
         ];
       })
       .filter(Boolean);
@@ -384,11 +405,14 @@ function renderLeafletMap() {
       }
     }
   }
+
+  const zoomLevel = map.getZoom();
+  const zoomBoost = directHeatPoints.length ? Math.max(0, zoomLevel - 8) : 0;
   state.mapLayers.heat = window.L.heatLayer(heatPoints, {
-    radius: directHeatPoints.length ? 22 : 28,
-    blur: directHeatPoints.length ? 18 : 24,
-    maxZoom: 12,
-    minOpacity: directHeatPoints.length ? 0.38 : 0.3,
+    radius: directHeatPoints.length ? 22 + zoomBoost * 3 : 28,
+    blur: directHeatPoints.length ? 18 + zoomBoost * 2 : 24,
+    maxZoom: 18,
+    minOpacity: directHeatPoints.length ? 0.48 : 0.3,
     gradient: {
       0.18: "#2d8cb2",
       0.42: "#76bfd2",
@@ -492,6 +516,7 @@ function renderMapMetrics() {
 
 function renderBreakdown(baseline, scenario) {
   const container = document.getElementById("breakdown-list");
+  if (!container) return;
   container.innerHTML = Object.entries(factorMeta)
     .map(([key, meta]) => {
       const baselineValue = Math.round(baseline[key]);
@@ -769,6 +794,7 @@ function handleMapMove(event) {
 function wireSliders() {
   Object.keys(sliderDefaults).forEach((key) => {
     const input = document.getElementById(`${key}-slider`);
+    if (!input) return;
     input.addEventListener("input", async () => {
       state.sliders[key] = Number(input.value);
       populateSliderLabels();
@@ -780,7 +806,10 @@ function wireSliders() {
 async function resetSliders() {
   state.sliders = { ...sliderDefaults };
   Object.keys(sliderDefaults).forEach((key) => {
-    document.getElementById(`${key}-slider`).value = sliderDefaults[key];
+    const input = document.getElementById(`${key}-slider`);
+    if (input) {
+      input.value = sliderDefaults[key];
+    }
   });
   await refreshScenario();
 }
@@ -859,11 +888,14 @@ document.getElementById("reload-map").addEventListener("click", () => {
   });
 });
 
-document.getElementById("reset-sliders").addEventListener("click", () => {
-  resetSliders().catch((error) => {
-    document.getElementById("status-text").textContent = error.message;
+const resetSlidersButton = document.getElementById("reset-sliders");
+if (resetSlidersButton) {
+  resetSlidersButton.addEventListener("click", () => {
+    resetSliders().catch((error) => {
+      document.getElementById("status-text").textContent = error.message;
+    });
   });
-});
+}
 
 document.getElementById("map").addEventListener("click", (event) => {
   handleMapClick(event).catch((error) => {
@@ -892,9 +924,16 @@ document.getElementById("location-picker").addEventListener("change", (event) =>
   });
 });
 
+document.querySelectorAll(".view-tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    activateView(button.dataset.view);
+  });
+});
+
 window.addEventListener("resize", drawMap);
 wireSliders();
 populateSliderLabels();
+activateView("map");
 initialize().catch((error) => {
   document.getElementById("status-text").textContent = error.message;
 });

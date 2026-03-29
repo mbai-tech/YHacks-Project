@@ -62,8 +62,14 @@
         </div>
       </header>
 
-      <main class="workspace">
-        <aside class="panel left-panel">
+      <div class="view-switch" role="tablist" aria-label="Explorer views">
+        <button class="view-tab is-active" data-view="map" aria-selected="true">Map</button>
+        <button class="view-tab" data-view="details" aria-selected="false">Details</button>
+      </div>
+
+      <section class="page-view is-active" data-view-panel="map">
+        <main class="workspace map-workspace">
+          <aside class="panel left-panel">
               <section class="section-card">
                 <div class="section-label">Selected Location</div>
                 <label class="location-picker-label" for="location-picker">Choose location</label>
@@ -92,53 +98,6 @@
           </section>
 
           <section class="section-card">
-            <div class="section-label">Risk Breakdown</div>
-            <div class="breakdown-list" id="breakdown-list"></div>
-          </section>
-
-          <section class="section-card">
-            <div class="section-label">Scenario Simulator</div>
-            <div class="slider-list">
-              <label class="slider-item">
-                <div class="slider-header">
-                  <span>Industrial Reduction</span>
-                  <strong id="industrial_reduction-value">20%</strong>
-                </div>
-                <input type="range" id="industrial_reduction-slider" min="0" max="50" value="20" />
-              </label>
-              <label class="slider-item">
-                <div class="slider-header">
-                  <span>Wastewater Improvement</span>
-                  <strong id="wastewater_improvement-value">30%</strong>
-                </div>
-                <input type="range" id="wastewater_improvement-slider" min="0" max="50" value="30" />
-              </label>
-              <label class="slider-item">
-                <div class="slider-header">
-                  <span>Plastic Waste Reduction</span>
-                  <strong id="plastic_reduction-value">15%</strong>
-                </div>
-                <input type="range" id="plastic_reduction-slider" min="0" max="50" value="15" />
-              </label>
-              <label class="slider-item">
-                <div class="slider-header">
-                  <span>Household Filtration</span>
-                  <strong id="household_filter_adoption-value">40%</strong>
-                </div>
-                <input type="range" id="household_filter_adoption-slider" min="0" max="100" value="40" />
-              </label>
-              <label class="slider-item">
-                <div class="slider-header">
-                  <span>Microfiber Filters</span>
-                  <strong id="microfiber_filter_adoption-value">50%</strong>
-                </div>
-                <input type="range" id="microfiber_filter_adoption-slider" min="0" max="100" value="50" />
-              </label>
-            </div>
-            <button class="ghost-button full-width" id="reset-sliders">Reset</button>
-          </section>
-
-          <section class="section-card">
             <div class="section-label">Impact Summary</div>
             <div class="impact-grid">
               <div class="impact-card">
@@ -155,57 +114,60 @@
               <span id="best-intervention">Best intervention: --</span>
             </div>
           </section>
-        </aside>
+          </aside>
 
-        <section class="panel center-panel">
-          <div class="map-header">
-            <div>
-              <div class="section-label">Interactive Map</div>
-              <h2>Risk Heatmap</h2>
-              <p>Search, click, or compare places using the same backend risk model that powers the scorecards.</p>
+          <section class="panel center-panel">
+            <div class="map-header">
+              <div>
+                <div class="section-label">Interactive Map</div>
+                <h2>Risk Heatmap</h2>
+                <p>Project OG styling with the Connecticut facility heatmap and selection flow from Project New.</p>
+              </div>
+              <div class="map-actions">
+                <button class="ghost-button" id="toggle-map">Reset Zoom</button>
+                <button class="ghost-button" id="reload-map">Refresh Map</button>
+              </div>
             </div>
-            <div class="map-actions">
-              <button class="ghost-button" id="toggle-map">Reset Zoom</button>
-              <button class="ghost-button" id="reload-map">Refresh Map</button>
-            </div>
-          </div>
 
-          <div class="legend-row">
-            <span>Lower intensity</span>
-            <div class="legend-bar"></div>
-            <span>Hotspot</span>
-          </div>
+            <div class="legend-row">
+              <span>Lower intensity</span>
+              <div class="legend-bar"></div>
+              <span>Hotspot</span>
+            </div>
 
-          <div class="map-stage">
-            <div id="map" role="presentation" aria-label="Water risk heatmap"></div>
-            <div class="map-overlay top-left">
-              <strong id="time-pill">Loading map...</strong>
-              <span id="stat-pill">Building baseline risk surface...</span>
+            <div class="map-stage">
+              <div id="map" role="presentation" aria-label="Water risk heatmap"></div>
+              <div class="map-overlay top-left">
+                <strong id="time-pill">Loading map...</strong>
+                <span id="stat-pill">Building baseline risk surface...</span>
+              </div>
+              <div class="map-overlay top-right">
+                <span>Selected</span>
+                <strong id="selection-coords">Awaiting selection</strong>
+              </div>
+              <div class="map-tooltip" id="map-tooltip" hidden></div>
             </div>
-            <div class="map-overlay top-right">
-              <span>Selected</span>
-              <strong id="selection-coords">Awaiting selection</strong>
-            </div>
-            <div class="map-tooltip" id="map-tooltip" hidden></div>
-          </div>
 
-          <div class="map-metrics">
-            <div class="metric-card">
-              <span>Peak baseline risk</span>
-              <strong id="peak-metric">--</strong>
+            <div class="map-metrics">
+              <div class="metric-card">
+                <span>Peak baseline risk</span>
+                <strong id="peak-metric">--</strong>
+              </div>
+              <div class="metric-card">
+                <span>Filtered mean score</span>
+                <strong id="mean-metric">--</strong>
+              </div>
+              <div class="metric-card">
+                <span>Tracked hotspots</span>
+                <strong id="snap-metric">--</strong>
+              </div>
             </div>
-            <div class="metric-card">
-              <span>Peak scenario risk</span>
-              <strong id="mean-metric">--</strong>
-            </div>
-            <div class="metric-card">
-              <span>Tracked hotspots</span>
-              <strong id="snap-metric">--</strong>
-            </div>
-          </div>
-        </section>
+          </section>
+        </main>
+      </section>
 
-        <aside class="panel right-panel">
+      <section class="page-view" data-view-panel="details">
+        <main class="details-layout">
           <section class="section-card">
             <div class="section-label">Why Is This Risky?</div>
             <h2>Explanation</h2>
@@ -219,14 +181,14 @@
           </section>
 
           <section class="section-card">
-            <div class="section-label">Compare</div>
-            <div id="comparison-panel" class="comparison-panel"></div>
-          </section>
-
-          <section class="section-card">
             <div class="section-label">Suggested Actions</div>
             <h2>Recommendations</h2>
             <ul class="detail-list" id="recommendations-list"></ul>
+          </section>
+
+          <section class="section-card">
+            <div class="section-label">Compare</div>
+            <div id="comparison-panel" class="comparison-panel"></div>
           </section>
 
           <section class="section-card auth-brief-card">
@@ -237,8 +199,8 @@
             </div>
             <pre id="brief-text">No brief generated yet.</pre>
           </section>
-        </aside>
-      </main>
+        </main>
+      </section>
     </div>
     <script defer src="{{ url_for('frontend.static', filename='js/app.js') }}"></script>
   </body>
