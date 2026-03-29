@@ -73,6 +73,58 @@ class WaterRiskService:
         self.map_component_cache = self._build_map_component_cache()
         self.state_outlines = self._load_state_outlines()
 
+    def _project_root(self) -> Path:
+        return Path(__file__).resolve().parents[3]
+
+    def _parquet_facilities_path(self) -> Path:
+        return self._project_root() / "data" / "interim" / "facilities_clean.parquet"
+
+    def _parquet_stream_scores_path(self) -> Path:
+        return self._project_root() / "data" / "processed" / "stream_scores.parquet"
+
+    def _has_parquet_inputs(self) -> bool:
+        return self._parquet_facilities_path().exists() and self._parquet_stream_scores_path().exists()
+
+    def _load_parquet_facility_frame(self) -> pd.DataFrame:
+        facilities = pd.read_parquet(self._parquet_facilities_path()).copy()
+        stream_scores = pd.read_parquet(self._parquet_stream_scores_path()).copy()
+
+        facilities["Latitude"] = pd.to_numeric(facilities.get("Latitude"), errors="coerce")
+        facilities["Longitude"] = pd.to_numeric(facilities.get("Longitude"), errors="coerce")
+        facilities["FacilityID"] = pd.to_numeric(facilities.get("FacilityNumber"), errors="coerce")
+
+        if "stream_score_raw" not in stream_scores.columns and "segment_score" in stream_scores.columns:
+            stream_scores = stream_scores.rename(columns={"segment_score": "stream_score_raw"})
+        if "COMID" not in stream_scores.columns and "FinalCOMID" in stream_scores.columns:
+            stream_scores = stream_scores.rename(columns={"FinalCOMID": "COMID"})
+        if "COMID" not in facilities.columns and "FinalCOMID" in facilities.columns:
+            facilities = facilities.rename(columns={"FinalCOMID": "COMID"})
+
+        if "WaterReleases" in facilities.columns:
+            water_releases = facilities["WaterReleases"]
+            if pd.api.types.is_bool_dtype(water_releases):
+                facilities["is_water_release"] = water_releases.fillna(False).astype(bool)
+            else:
+                facilities["is_water_release"] = water_releases.astype("string").fillna("").str.strip().ne("")
+        else:
+            facilities["is_water_release"] = False
+
+        facilities = facilities.dropna(subset=["Latitude", "Longitude"]).copy()
+
+        if "COMID" in facilities.columns and "COMID" in stream_scores.columns:
+            facilities = facilities.merge(
+                stream_scores[[column for column in ["COMID", "stream_score_raw"] if column in stream_scores.columns]].drop_duplicates("COMID"),
+                on="COMID",
+                how="left",
+                suffixes=("", "_score"),
+            )
+
+        facilities["stream_score_raw"] = pd.to_numeric(facilities.get("stream_score_raw"), errors="coerce").fillna(0.0)
+        facilities["normalized_risk"] = (self._minmax(facilities["stream_score_raw"]).fillna(0.0) * 100.0).round(1)
+        facilities["population_proxy"] = 1000.0 + facilities["normalized_risk"] * 25.0
+        facilities["facility_weight"] = 0.35 + self._minmax(facilities["stream_score_raw"]).fillna(0.0) * 0.65
+        return facilities.reset_index(drop=True)
+
     def search(self, query: str, limit: int = 8) -> list[dict[str, Any]]:
         """Search by coordinates, ZIP, city, or county using local data."""
         query = (query or "").strip()
@@ -268,7 +320,10 @@ class WaterRiskService:
         }
 
     def build_map_payload(self, scenario: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Return the heatmap grid and marker set used by the canvas map."""
+        """Return the heatmap grid and marker set used by the interactive map."""
+        if self._has_parquet_inputs():
+            return self._build_parquet_map_payload()
+
         scenario_state = self._normalize_scenario(scenario or DEFAULT_SCENARIO)
         baseline = self.map_component_cache
         adjusted = self._apply_scenario_to_components(
@@ -293,6 +348,67 @@ class WaterRiskService:
             "stats": {
                 "baseline_peak": round(float(np.max(baseline["total"])), 2),
                 "scenario_peak": round(float(np.max(total)), 2),
+                "hotspot_count": len(hotspots),
+            },
+        }
+
+    def _build_parquet_map_payload(self) -> dict[str, Any]:
+        facilities = self.industrial.copy()
+        facilities["Latitude"] = pd.to_numeric(facilities["Latitude"], errors="coerce")
+        facilities["Longitude"] = pd.to_numeric(facilities["Longitude"], errors="coerce")
+        facilities["stream_score_raw"] = pd.to_numeric(facilities["stream_score_raw"], errors="coerce").fillna(0.0)
+        facilities["normalized_risk"] = pd.to_numeric(facilities["normalized_risk"], errors="coerce").fillna(0.0)
+        facilities = facilities.dropna(subset=["Latitude", "Longitude"]).copy()
+
+        lat_pad = 0.18
+        lon_pad = 0.24
+        bounds = {
+            "min_lat": round(float(facilities["Latitude"].min() - lat_pad), 4),
+            "max_lat": round(float(facilities["Latitude"].max() + lat_pad), 4),
+            "min_lon": round(float(facilities["Longitude"].min() - lon_pad), 4),
+            "max_lon": round(float(facilities["Longitude"].max() + lon_pad), 4),
+        }
+
+        top_places_df = facilities.sort_values("stream_score_raw", ascending=False).head(12)
+        top_places = [
+            SearchCandidate(
+                id=f"facility:{int(row['FacilityID'])}" if pd.notna(row["FacilityID"]) else f"facility:{idx}",
+                name=str(row["FacilityName"]),
+                kind="facility",
+                latitude=float(row["Latitude"]),
+                longitude=float(row["Longitude"]),
+                subtitle=f"{row.get('County', '')}, {row.get('State', 'CT')} · score {float(row['stream_score_raw']):.2f}",
+            ).to_dict()
+            for idx, (_, row) in enumerate(top_places_df.iterrows())
+        ]
+
+        heat_source = facilities.sort_values("stream_score_raw", ascending=False).copy()
+        if not heat_source.empty:
+            threshold = float(heat_source["stream_score_raw"].quantile(0.55))
+            heat_source = heat_source[heat_source["stream_score_raw"] >= threshold].copy()
+            heat_source = heat_source.head(260)
+
+        heat_points = [
+            {
+                "latitude": round(float(row["Latitude"]), 5),
+                "longitude": round(float(row["Longitude"]), 5),
+                "intensity": round(float(max(row["stream_score_raw"], 0.0)), 4),
+            }
+            for _, row in heat_source.iterrows()
+        ]
+
+        hotspots = self._hotspot_markers()
+        peak_score = round(float(facilities["stream_score_raw"].max()), 2) if not facilities.empty else 0.0
+
+        return {
+            "bounds": bounds,
+            "heat_points": heat_points,
+            "markers": hotspots,
+            "state_outlines": [],
+            "top_places": top_places,
+            "stats": {
+                "baseline_peak": peak_score,
+                "scenario_peak": peak_score,
                 "hotspot_count": len(hotspots),
             },
         }
@@ -331,6 +447,30 @@ class WaterRiskService:
         return "\n".join(lines)
 
     def _load_industrial(self) -> pd.DataFrame:
+        if self._has_parquet_inputs():
+            facilities = self._load_parquet_facility_frame()
+            renamed = facilities.rename(
+                columns={
+                    "CountyName": "County",
+                    "StateCode": "State",
+                    "ZipCode": "ZIPCode",
+                }
+            ).copy()
+            for column, default in {
+                "FacilityID": 0,
+                "FacilityName": "Selected facility",
+                "City": "",
+                "County": "",
+                "State": "CT",
+                "ZIPCode": "",
+            }.items():
+                if column not in renamed.columns:
+                    renamed[column] = default
+            renamed["release_proxy"] = renamed["stream_score_raw"].fillna(0.0)
+            renamed["tox_proxy"] = renamed["normalized_risk"].fillna(0.0)
+            renamed["pop_proxy"] = renamed["population_proxy"].fillna(0.0)
+            return renamed.reset_index(drop=True)
+
         facility_path = self.data_dir / "Pollution" / "facility_data_rsei_v2312.csv"
         grid_metrics = self._load_grid_metrics()
         df = pd.read_csv(
@@ -368,6 +508,17 @@ class WaterRiskService:
         return df.reset_index(drop=True)
 
     def _load_grid_metrics(self) -> pd.DataFrame:
+        if self._has_parquet_inputs():
+            facilities = self._load_parquet_facility_frame()
+            grid = facilities.reset_index().rename(columns={"index": "GridCode"}).copy()
+            return grid[["GridCode", "stream_score_raw", "normalized_risk", "population_proxy"]].rename(
+                columns={
+                    "stream_score_raw": "num_releases",
+                    "normalized_risk": "tox_conc",
+                    "population_proxy": "pop_proxy",
+                }
+            )
+
         gridcodes = (
             pd.read_csv(
                 self.data_dir / "Pollution" / "facility_data_rsei_v2312.csv",
@@ -405,6 +556,23 @@ class WaterRiskService:
         )
 
     def _load_wastewater(self) -> pd.DataFrame:
+        if self._has_parquet_inputs():
+            facilities = self._load_parquet_facility_frame()
+            wastewater = facilities[facilities["is_water_release"]].copy()
+            if wastewater.empty:
+                wastewater = facilities.copy()
+            wastewater["FACILITY_ID"] = wastewater["FacilityID"].fillna(0).astype(int)
+            wastewater["LATITUDE"] = wastewater["Latitude"]
+            wastewater["LONGITUDE"] = wastewater["Longitude"]
+            wastewater["FACILITY_NAME"] = wastewater["FacilityName"].fillna("Water-linked facility")
+            wastewater["COUNTY_NAME"] = wastewater["County"].fillna("")
+            wastewater["STATE_CODE_x"] = wastewater["State"].fillna("CT")
+            wastewater["CITY"] = wastewater["City"].fillna("") if "City" in wastewater.columns else ""
+            wastewater["ZIP_CODE"] = wastewater["ZipCode"].fillna("") if "ZipCode" in wastewater.columns else ""
+            wastewater["population_proxy"] = 1500.0 + wastewater["normalized_risk"].fillna(0.0) * 30.0
+            wastewater["wastewater_weight"] = 0.30 + self._minmax(wastewater["stream_score_raw"]).fillna(0.0) * 0.70
+            return wastewater.reset_index(drop=True)
+
         facilities = pd.read_csv(
             self.data_dir / "WasteWaterFacilities" / "FACILITIES.csv",
             usecols=["CWNS_ID", "FACILITY_ID", "FACILITY_NAME", "STATE_CODE", "INFRASTRUCTURE_TYPE"],
@@ -762,7 +930,7 @@ class WaterRiskService:
             row = self.industrial.iloc[int(idx)]
             sources.append(
                 {
-                    "id": row["FacilityID"],
+                    "id": str(int(row["FacilityID"])) if pd.notna(row["FacilityID"]) else row["FacilityName"],
                     "type": "industrial",
                     "name": row["FacilityName"],
                     "latitude": round(float(row["Latitude"]), 5),
@@ -796,7 +964,7 @@ class WaterRiskService:
         for _, row in top_industrial.iterrows():
             hotspots.append(
                 {
-                    "id": row["FacilityID"],
+                    "id": str(int(row["FacilityID"])) if pd.notna(row["FacilityID"]) else row["FacilityName"],
                     "type": "industrial",
                     "name": row["FacilityName"],
                     "latitude": round(float(row["Latitude"]), 5),

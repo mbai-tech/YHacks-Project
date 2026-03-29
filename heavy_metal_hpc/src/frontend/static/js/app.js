@@ -24,6 +24,8 @@ const factorMeta = {
 const state = {
   sliders: { ...sliderDefaults },
   mapPayload: null,
+  mapInstance: null,
+  mapLayers: {},
   selection: null,
   selectionScenario: null,
   selectionBaseline: null,
@@ -64,10 +66,84 @@ function updateDatalist(options) {
   datalist.innerHTML = options.map((item) => `<option value="${item.name}"></option>`).join("");
 }
 
+function updateLocationPicker(options) {
+  const picker = document.getElementById("location-picker");
+  if (!picker) return;
+
+  const currentValue = picker.value;
+  picker.innerHTML = options
+    .map(
+      (item) =>
+        `<option value="${item.id}">${item.name}${item.subtitle ? ` - ${item.subtitle}` : ""}</option>`,
+    )
+    .join("");
+
+  if (state.selection?.location?.name) {
+    const selectedOption = options.find((item) => item.name === state.selection.location.name);
+    if (selectedOption) {
+      picker.value = selectedOption.id;
+      return;
+    }
+  }
+
+  if (currentValue && options.some((item) => item.id === currentValue)) {
+    picker.value = currentValue;
+  }
+}
+
 function colorForScore(score) {
   if (score >= 70) return [239, 106, 91];
   if (score >= 40) return [243, 184, 71];
   return [75, 163, 187];
+}
+
+function popupMarkup(title, subtitle) {
+  return `
+    <div class="map-popup">
+      <div class="map-popup-title">${title}</div>
+      <div class="map-popup-copy">${subtitle}</div>
+    </div>
+  `;
+}
+
+function ensureLeafletMap() {
+  if (!window.L || state.mapInstance) return;
+
+  state.mapInstance = window.L.map("map", {
+    zoomControl: true,
+    attributionControl: true,
+    scrollWheelZoom: true,
+  });
+
+  window.L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+    subdomains: "abcd",
+    maxZoom: 18,
+  }).addTo(state.mapInstance);
+
+  state.mapLayers = {
+    outlines: window.L.layerGroup().addTo(state.mapInstance),
+    markers: window.L.layerGroup().addTo(state.mapInstance),
+    selection: window.L.layerGroup().addTo(state.mapInstance),
+    compare: window.L.layerGroup().addTo(state.mapInstance),
+    heat: null,
+  };
+
+  state.mapInstance.on("click", (event) => {
+    const comparePick = state.compareEnabled && state.pendingComparePick && state.selection;
+    const candidate = {
+      name: `Selected Point (${event.latlng.lat.toFixed(3)}, ${event.latlng.lng.toFixed(3)})`,
+      latitude: event.latlng.lat,
+      longitude: event.latlng.lng,
+    };
+    selectLocationFromCandidate(candidate, comparePick)
+      .then(() => {
+        state.pendingComparePick = false;
+      })
+      .catch((error) => {
+        document.getElementById("status-text").textContent = error.message;
+      });
+  });
 }
 
 function getMapGeometry() {
@@ -84,6 +160,13 @@ function ensureView() {
 
 function resetZoom() {
   if (!state.mapPayload) return;
+  if (state.mapInstance) {
+    state.mapInstance.fitBounds([
+      [state.mapPayload.bounds.min_lat, state.mapPayload.bounds.min_lon],
+      [state.mapPayload.bounds.max_lat, state.mapPayload.bounds.max_lon],
+    ]);
+    return;
+  }
   const bounds = state.mapPayload.bounds;
   state.view = {
     minLon: bounds.min_lon,
@@ -95,6 +178,10 @@ function resetZoom() {
 }
 
 function zoomToPoint(latitude, longitude) {
+  if (state.mapInstance) {
+    state.mapInstance.setView([latitude, longitude], 9, { animate: false });
+    return;
+  }
   const latSpan = 8;
   const lonSpan = 14;
   state.view = {
@@ -154,6 +241,10 @@ function drawMarker(ctx, marker, width, height, selected = false) {
 
 function drawMap() {
   if (!state.mapPayload) return;
+  if (window.L) {
+    renderLeafletMap();
+    return;
+  }
 
   const { canvas, width, height } = getMapGeometry();
   const ctx = canvas.getContext("2d");
@@ -220,6 +311,146 @@ function drawMap() {
   }
 }
 
+function renderLeafletMap() {
+  ensureLeafletMap();
+  if (!state.mapInstance) return;
+
+  const map = state.mapInstance;
+  const bounds = [
+    [state.mapPayload.bounds.min_lat, state.mapPayload.bounds.min_lon],
+    [state.mapPayload.bounds.max_lat, state.mapPayload.bounds.max_lon],
+  ];
+
+  if (!map.__initialBoundsApplied) {
+    map.fitBounds(bounds);
+    map.__initialBoundsApplied = true;
+  }
+
+  map.invalidateSize();
+  document.getElementById("map-tooltip").hidden = true;
+
+  state.mapLayers.outlines.clearLayers();
+  state.mapLayers.markers.clearLayers();
+  state.mapLayers.selection.clearLayers();
+  state.mapLayers.compare.clearLayers();
+  if (state.mapLayers.heat) {
+    map.removeLayer(state.mapLayers.heat);
+  }
+
+  (state.mapPayload.state_outlines || []).forEach((path) => {
+    window.L.polyline(
+      path.map(([longitude, latitude]) => [latitude, longitude]),
+      { color: "rgba(16, 34, 53, 0.28)", weight: 1.1, opacity: 0.65 },
+    ).addTo(state.mapLayers.outlines);
+  });
+
+  const directHeatPoints = state.mapPayload.heat_points || [];
+  let heatPoints = [];
+  if (directHeatPoints.length) {
+    const maxIntensity = Math.max(...directHeatPoints.map((point) => point.intensity || 0), 1);
+    heatPoints = directHeatPoints
+      .map((point) => {
+        const normalized = clamp((point.intensity || 0) / maxIntensity, 0, 1);
+        if (normalized < 0.18) return null;
+        return [
+          point.latitude,
+          point.longitude,
+          clamp(normalized ** 1.85, 0.2, 1),
+        ];
+      })
+      .filter(Boolean);
+
+    if (state.selection) {
+      heatPoints.push([
+        state.selection.location.latitude,
+        state.selection.location.longitude,
+        1,
+      ]);
+    }
+  } else {
+    const lats = state.mapPayload.latitudes || [];
+    const lons = state.mapPayload.longitudes || [];
+    const grid = state.mapPayload.scenario_grid || [];
+    const maxScore = Math.max(...grid.flat(), 1);
+    for (let row = 0; row < lats.length - 1; row += 1) {
+      for (let col = 0; col < lons.length - 1; col += 1) {
+        const score = grid[row]?.[col] ?? 0;
+        if (score <= 0) continue;
+        heatPoints.push([
+          (lats[row] + lats[row + 1]) / 2,
+          (lons[col] + lons[col + 1]) / 2,
+          clamp(score / maxScore, 0.08, 1),
+        ]);
+      }
+    }
+  }
+  state.mapLayers.heat = window.L.heatLayer(heatPoints, {
+    radius: directHeatPoints.length ? 22 : 28,
+    blur: directHeatPoints.length ? 18 : 24,
+    maxZoom: 12,
+    minOpacity: directHeatPoints.length ? 0.38 : 0.3,
+    gradient: {
+      0.18: "#2d8cb2",
+      0.42: "#76bfd2",
+      0.68: "#ffd45a",
+      1.0: "#ef6a5b",
+    },
+  }).addTo(map);
+
+  (state.mapPayload.markers || []).forEach((marker) => {
+    const markerColor = marker.type === "wastewater" ? "#2d8cb2" : "#ef6a5b";
+    const markerLayer = window.L.circleMarker([marker.latitude, marker.longitude], {
+      radius: 7,
+      color: "#ffffff",
+      weight: 2,
+      fillColor: markerColor,
+      fillOpacity: 0.9,
+    });
+    markerLayer.bindPopup(popupMarkup(marker.name, marker.label));
+    markerLayer.on("click", (event) => {
+      window.L.DomEvent.stopPropagation(event);
+      const comparePick = state.compareEnabled && state.pendingComparePick && state.selection;
+      selectLocationFromCandidate(
+        {
+          name: marker.name,
+          latitude: marker.latitude,
+          longitude: marker.longitude,
+        },
+        comparePick,
+      )
+        .then(() => {
+          state.pendingComparePick = false;
+        })
+        .catch((error) => {
+          document.getElementById("status-text").textContent = error.message;
+        });
+    });
+    markerLayer.addTo(state.mapLayers.markers);
+  });
+
+  if (state.selection) {
+    window.L.circleMarker([state.selection.location.latitude, state.selection.location.longitude], {
+      radius: 11,
+      color: "#102235",
+      weight: 4,
+      fillColor: "#102235",
+      fillOpacity: 0.95,
+    }).addTo(state.mapLayers.selection);
+    document.getElementById("selection-coords").textContent =
+      `${state.selection.location.latitude.toFixed(3)}, ${state.selection.location.longitude.toFixed(3)}`;
+  }
+
+  if (state.compareSelection) {
+    window.L.circleMarker([state.compareSelection.location.latitude, state.compareSelection.location.longitude], {
+      radius: 10,
+      color: "#ffffff",
+      weight: 3,
+      fillColor: "#2d8cb2",
+      fillOpacity: 0.95,
+    }).addTo(state.mapLayers.compare);
+  }
+}
+
 function drawStateOutlines(ctx, width, height) {
   const outlines = state.mapPayload?.state_outlines || [];
   ctx.save();
@@ -283,6 +514,7 @@ function renderSummary() {
   const { location } = state.selection;
   const baseline = state.selectionBaseline;
   const scenario = state.selectionScenario;
+  updateLocationPicker(state.mapPayload?.top_places || []);
   document.getElementById("selected-location-name").textContent = location.name;
   document.getElementById("selected-location-subtitle").textContent = state.selection.location.subtitle;
   document.getElementById("risk-score-value").textContent = baseline.total_score.toFixed(1);
@@ -462,6 +694,7 @@ async function loadMap() {
   document.getElementById("time-pill").textContent = "Continental U.S. risk surface";
   document.getElementById("stat-pill").textContent = "Industrial + wastewater + population proxies";
   updateDatalist(state.mapPayload.top_places || []);
+  updateLocationPicker(state.mapPayload.top_places || []);
   drawMap();
 }
 
@@ -483,6 +716,7 @@ async function handleSearch(event) {
 }
 
 async function handleMapClick(event) {
+  if (state.mapInstance) return;
   if (!state.mapPayload) return;
   const { rect, width, height } = getMapGeometry();
   const x = event.clientX - rect.left;
@@ -510,6 +744,10 @@ function markerAtPoint(point) {
 }
 
 function handleMapMove(event) {
+  if (state.mapInstance) {
+    document.getElementById("map-tooltip").hidden = true;
+    return;
+  }
   if (!state.mapPayload) return;
   const tooltip = document.getElementById("map-tooltip");
   const { rect } = getMapGeometry();
@@ -641,6 +879,16 @@ document.getElementById("map").addEventListener("mouseleave", () => {
 document.getElementById("generate").addEventListener("click", () => {
   generateBrief().catch((error) => {
     document.getElementById("brief-text").textContent = error.message;
+  });
+});
+
+document.getElementById("location-picker").addEventListener("change", (event) => {
+  const nextId = event.target.value;
+  const candidate = (state.mapPayload?.top_places || []).find((item) => item.id === nextId);
+  if (!candidate) return;
+
+  selectLocationFromCandidate(candidate, false).catch((error) => {
+    document.getElementById("status-text").textContent = error.message;
   });
 });
 

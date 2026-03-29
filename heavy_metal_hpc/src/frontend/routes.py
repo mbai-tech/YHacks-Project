@@ -19,7 +19,7 @@ def create_frontend_blueprint(cfg: RunConfig) -> Blueprint:
         static_folder="static",
         static_url_path="/frontend-static",
     )
-    data_dir = Path(__file__).resolve().parents[2] / "data"
+    data_dir = Path(__file__).resolve().parents[3] / "data"
     service = WaterRiskService(data_dir)
 
     @frontend.get("/")

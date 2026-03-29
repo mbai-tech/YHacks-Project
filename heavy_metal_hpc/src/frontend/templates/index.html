@@ -4,7 +4,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Water Risk Explorer</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
     <link rel="stylesheet" href="{{ url_for('frontend.static', filename='css/app.css') }}" />
+    <script
+      defer
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script defer src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
   </head>
   <body
     data-search-url="{{ url_for('frontend.search') }}"
@@ -51,11 +64,13 @@
 
       <main class="workspace">
         <aside class="panel left-panel">
-          <section class="section-card">
-            <div class="section-label">Selected Location</div>
-            <div class="location-block">
-              <div class="location-pin">Pin</div>
-              <div>
+              <section class="section-card">
+                <div class="section-label">Selected Location</div>
+                <label class="location-picker-label" for="location-picker">Choose location</label>
+                <select id="location-picker" class="location-picker"></select>
+                <div class="location-block">
+                  <div class="location-pin">Pin</div>
+                  <div>
                 <h2 id="selected-location-name">Loading...</h2>
                 <p id="selected-location-subtitle">Pulling risk context from the local datasets.</p>
               </div>
@@ -162,7 +177,7 @@
           </div>
 
           <div class="map-stage">
-            <canvas id="map"></canvas>
+            <div id="map" role="presentation" aria-label="Water risk heatmap"></div>
             <div class="map-overlay top-left">
               <strong id="time-pill">Loading map...</strong>
               <span id="stat-pill">Building baseline risk surface...</span>
@@ -225,6 +240,6 @@
         </aside>
       </main>
     </div>
-    <script src="{{ url_for('frontend.static', filename='js/app.js') }}"></script>
+    <script defer src="{{ url_for('frontend.static', filename='js/app.js') }}"></script>
   </body>
 </html>
