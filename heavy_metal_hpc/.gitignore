@@ -2,6 +2,7 @@
 .pytest_cache/
 __pycache__/
 *.pyc
+*.csv
 
 # Large local datasets and archives
 data/
