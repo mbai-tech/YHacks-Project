@@ -33,24 +33,24 @@ st.markdown("""
   /* ── global ── */
   html, body, [class*="css"], [data-testid="stAppViewContainer"] {
     font-family: 'DM Sans', sans-serif;
-    background: #0e1117;
-    color: #dce8f0;
+    background: #dbe7ef;
+    color: #000000;
   }
   [data-testid="stHeader"] { background: transparent; }
 
   /* ── sidebar ── */
   [data-testid="stSidebar"] {
-    background: #13181f;
-    border-right: 1px solid #1f2d3d;
+    background: #ffffff;
+    border-right: 1px solid #d0d0d0;
   }
   [data-testid="stSidebar"] * {
     font-family: 'DM Sans', sans-serif !important;
-    color: #8fadc7 !important;
+    color: #000000 !important;
   }
   [data-testid="stSidebar"] h1,
   [data-testid="stSidebar"] h2,
   [data-testid="stSidebar"] h3 {
-    color: #38bdf8 !important;
+    color: #000000 !important;
     font-size: 0.72rem !important;
     font-weight: 700 !important;
     letter-spacing: 0.14em;
@@ -64,46 +64,46 @@ st.markdown("""
 
   /* ── metric cards ── */
   [data-testid="stMetric"] {
-    background: #13181f;
-    border: 1px solid #1f2d3d;
+    background: #ffffff;
+    border: 1px solid #90c4e8;
     border-radius: 8px;
     padding: 12px 16px;
   }
   [data-testid="stMetricLabel"] {
     font-family: 'DM Mono', monospace !important;
-    color: #38bdf8 !important;
+    color: #000000 !important;
     font-size: 0.65rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   [data-testid="stMetricValue"] {
     font-family: 'DM Sans', sans-serif !important;
-    color: #dce8f0 !important;
+    color: #000000 !important;
     font-size: 1.5rem;
     font-weight: 700;
   }
 
   /* ── dataframe ── */
-  [data-testid="stDataFrame"] { border: 1px solid #1f2d3d; border-radius: 8px; overflow: hidden; }
+  [data-testid="stDataFrame"] { border: 1px solid #90c4e8; border-radius: 8px; overflow: hidden; background: #ffffff !important; }
   .stDataFrame thead th {
     font-family: 'DM Mono', monospace !important;
-    background: #13181f !important;
-    color: #38bdf8 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
     font-size: 0.65rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .stDataFrame tbody tr:nth-child(even) { background: #0e1117 !important; }
-  .stDataFrame tbody tr:hover { background: #1a2535 !important; }
+  .stDataFrame tbody tr:nth-child(even) { background: #f5f9fc !important; }
+  .stDataFrame tbody tr:hover { background: #e8f2f8 !important; }
 
   /* ── section divider ── */
-  hr { border-color: #1f2d3d; }
+  hr { border-color: #90c4e8; }
 
   /* ── hide default streamlit chrome ── */
   #MainMenu, footer { visibility: hidden; }
 
   /* ── map container ── */
-  iframe { border-radius: 10px; border: 1px solid #1f2d3d; }
+  iframe { border-radius: 10px; border: 1px solid #90c4e8; background: #ffffff !important; }
 
   /* ── risk badge ── */
   .risk-badge {
@@ -116,9 +116,9 @@ st.markdown("""
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
-  .risk-low    { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-  .risk-medium { background: #1c1400; color: #fbbf24; border: 1px solid #92400e; }
-  .risk-high   { background: #2d0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+  .risk-low    { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .risk-medium { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
+  .risk-high   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,10 +128,10 @@ st.markdown("""
 
 st.markdown("""
 <div style="padding: 1.2rem 0 0.4rem 0;">
-  <span style="font-size:0.75rem; letter-spacing:0.15em; color:#5bc8f5; text-transform:uppercase;">
+  <span style="font-size:0.75rem; letter-spacing:0.15em; color:#555555; text-transform:uppercase;">
     EPA RSEI v23.12 · Industrial Facility Water Releases
   </span>
-  <h1 style="margin:0.2rem 0 0 0; font-size:2rem; font-weight:800; color:#e0eaff; line-height:1.1;">
+  <h1 style="margin:0.2rem 0 0 0; font-size:2rem; font-weight:800; color:#000000; line-height:1.1; font-family:'DM Sans', sans-serif;">
     Connecticut Water<br>Contamination Risk
   </h1>
 </div>
@@ -438,8 +438,8 @@ PATHWAY_PARAMS = {
         radius_scale = 1.0,
         blur_scale   = 1.0,
         min_opacity  = 0.3,
-        gradient     = {"0.0": "#00aaff", "0.4": "#00ffcc",
-                        "0.65": "#aaff00", "0.8": "#ffcc00", "1.0": "#ff2200"},
+        gradient     = {"0.0": "#0000ff", "0.25": "#00aaff",
+                        "0.5": "#00ffaa", "0.75": "#ffaa00", "1.0": "#ff0000"},
     ),
 }
 
@@ -458,18 +458,6 @@ rainfall = st.sidebar.slider(
     "Monthly Rainfall (in)", 0.0, 10.0, 3.5, 0.5,
     help="Higher rainfall increases runoff, spreading contaminants further downstream.",
 )
-season = st.sidebar.selectbox(
-    "Season", ["Spring", "Summer", "Fall", "Winter"],
-    help="Season affects streamflow volume and contaminant dilution.",
-)
-temp_f = st.sidebar.slider(
-    "Temperature (°F)", 20, 95, 60, 5,
-    help="Higher temperatures accelerate chemical reactions and reduce dilution via evaporation.",
-)
-soil_type = st.sidebar.selectbox(
-    "Soil Permeability", ["Clay (low)", "Loam (medium)", "Sandy (high)"],
-    help="Controls how much surface runoff vs. groundwater infiltration occurs.",
-)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### Future Projection")
@@ -481,13 +469,9 @@ is_future = projection_year > 2022
 rainfall_weight_mult = 1.0 + (rainfall / 10.0) * 0.4
 rainfall_radius_mult = 1.0 + (rainfall / 10.0) * 0.6
 rainfall_blur_mult   = 1.0 + (rainfall / 10.0) * 0.5
-season_mult = {"Spring": 1.2, "Summer": 1.5, "Fall": 1.0, "Winter": 0.5}[season]
-temp_mult = 0.7 + (temp_f - 20) / (95 - 20) * 0.6
-soil_weight_mult = {"Clay (low)": 1.3,  "Loam (medium)": 1.0, "Sandy (high)": 0.65}[soil_type]
-soil_radius_mult = {"Clay (low)": 1.15, "Loam (medium)": 1.0, "Sandy (high)": 0.85}[soil_type]
 
-env_weight_mult = rainfall_weight_mult * season_mult * temp_mult * soil_weight_mult
-env_radius      = int(20 * rainfall_radius_mult * soil_radius_mult)
+env_weight_mult = rainfall_weight_mult
+env_radius      = int(20 * rainfall_radius_mult)
 env_blur        = int(25 * rainfall_blur_mult)
 
 # Combined with pathway params (needed for sidebar display below)
@@ -536,7 +520,7 @@ st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 
 CT_CENTER = [41.6, -72.7]
-m = folium.Map(location=CT_CENTER, zoom_start=9, tiles="CartoDB dark_matter")
+m = folium.Map(location=CT_CENTER, zoom_start=9, tiles="OpenStreetMap")
 
 if is_future:
     cache_key = f"llm_mult_{projection_year}"
@@ -637,30 +621,30 @@ with col2:
             score_color, label = "#f87171", "High"
 
         st.markdown(f"""
-        <div style="background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;">
-          <p style="font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#38bdf8; margin:0 0 0.3rem 0;">
+        <div style="background:#ffffff; border:1px solid #90c4e8; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;">
+          <p style="font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#000000; margin:0 0 0.3rem 0;">
             Location Risk · {clat:.4f}, {clon:.4f}
           </p>
           <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.6rem;">
             <span style="font-size:1.8rem; font-weight:800; color:{score_color};">{risk.score}</span>
             <span style="font-size:0.75rem; color:{score_color}; font-weight:600;">{label}</span>
-            <span style="font-size:0.65rem; color:#4a6080;">/ 100</span>
+            <span style="font-size:0.65rem; color:#555555;">/ 100</span>
           </div>
           <table style="font-size:0.72rem; border-collapse:collapse; width:100%;">
-            <tr><td style="color:#8fadc7; padding:2px 0;">Industrial Facilities</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.facility_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">30%</td></tr>
-            <tr><td style="color:#8fadc7; padding:2px 0;">Stream Contamination</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.downstream_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">20%</td></tr>
-            <tr><td style="color:#8fadc7; padding:2px 0;">Wastewater Plants</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.wastewater_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">25%</td></tr>
-            <tr><td style="color:#8fadc7; padding:2px 0;">Drinking Water (SDWA)</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.sdwa_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">25%</td></tr>
+            <tr><td style="color:#000000; padding:2px 0;">Industrial Facilities</td>
+                <td style="text-align:right; color:#000000; font-weight:600;">{risk.facility_score}</td>
+                <td style="text-align:right; color:#555555; font-size:0.6rem; padding-left:4px;">30%</td></tr>
+            <tr><td style="color:#000000; padding:2px 0;">Stream Contamination</td>
+                <td style="text-align:right; color:#000000; font-weight:600;">{risk.downstream_score}</td>
+                <td style="text-align:right; color:#555555; font-size:0.6rem; padding-left:4px;">20%</td></tr>
+            <tr><td style="color:#000000; padding:2px 0;">Wastewater Plants</td>
+                <td style="text-align:right; color:#000000; font-weight:600;">{risk.wastewater_score}</td>
+                <td style="text-align:right; color:#555555; font-size:0.6rem; padding-left:4px;">25%</td></tr>
+            <tr><td style="color:#000000; padding:2px 0;">Drinking Water (SDWA)</td>
+                <td style="text-align:right; color:#000000; font-weight:600;">{risk.sdwa_score}</td>
+                <td style="text-align:right; color:#555555; font-size:0.6rem; padding-left:4px;">25%</td></tr>
           </table>
-          <div style="margin-top:0.5rem; font-size:0.65rem; color:#4a6080; border-top:1px solid #1f2d3d; padding-top:0.4rem;">
+          <div style="margin-top:0.5rem; font-size:0.65rem; color:#555555; border-top:1px solid #90c4e8; padding-top:0.4rem;">
             {risk.facility_count} facilities · {risk.wastewater_plant_count} WW plants · {risk.sdwa_system_count} water systems nearby
           </div>
         </div>
@@ -680,8 +664,8 @@ with col2:
             )
     else:
         st.markdown(
-            "<div style='background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;'>"
-            "<p style='font-size:0.75rem; color:#4a6080; margin:0;'>Click anywhere on the map to compute a location risk score.</p>"
+            "<div style='background:#ffffff; border:1px solid #90c4e8; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;'>"
+            "<p style='font-size:0.75rem; color:#000000; margin:0;'>Click anywhere on the map to compute a location risk score.</p>"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -707,33 +691,26 @@ with col2:
     st.markdown(f"""
     <div style="font-size:0.78rem; margin-bottom:0.8rem;">
       <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-        <span style="color:#a8c4e0;">Direct Water</span>
-        <span style="color:#e0eaff; font-weight:600;">{rel_stats['direct_lbs']/1e9:.1f}B lbs ({direct_pct:.0f}%)</span>
+        <span style="color:#000000;">Direct Water</span>
+        <span style="color:#000000; font-weight:600;">{rel_stats['direct_lbs']/1e9:.1f}B lbs ({direct_pct:.0f}%)</span>
       </div>
-      <div style="background:#1f2d3d; border-radius:3px; height:6px; margin-bottom:10px;">
+      <div style="background:#d0dde6; border-radius:3px; height:6px; margin-bottom:10px;">
         <div style="background:{direct_color}; width:{direct_pct:.0f}%; height:6px; border-radius:3px;"></div>
       </div>
       <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-        <span style="color:#a8c4e0;">POTW Transfer</span>
-        <span style="color:#e0eaff; font-weight:600;">{rel_stats['potw_lbs']/1e9:.1f}B lbs ({potw_pct:.0f}%)</span>
+        <span style="color:#000000;">POTW Transfer</span>
+        <span style="color:#000000; font-weight:600;">{rel_stats['potw_lbs']/1e9:.1f}B lbs ({potw_pct:.0f}%)</span>
       </div>
-      <div style="background:#1f2d3d; border-radius:3px; height:6px;">
+      <div style="background:#d0dde6; border-radius:3px; height:6px;">
         <div style="background:{potw_color}; width:{potw_pct:.0f}%; height:6px; border-radius:3px;"></div>
       </div>
     </div>
-    <div style="font-size:0.68rem; color:#4a6080; border-top:1px solid #1f2d3d; padding-top:0.5rem;">
-      Pathway weight mult: <b style="color:#38bdf8;">{pw["weight_mult"]:.2f}×</b><br>
-      TEF toxic load: <b style="color:#38bdf8;">{rel_stats['toxic_load']:.3f}</b> (lb·TEF units)
+    <div style="font-size:0.68rem; color:#555555; border-top:1px solid #90c4e8; padding-top:0.5rem;">
+      Pathway weight mult: <b style="color:#000000;">{pw["weight_mult"]:.2f}×</b><br>
+      TEF toxic load: <b style="color:#000000;">{rel_stats['toxic_load']:.3f}</b> (lb·TEF units)
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<p style='font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin:1rem 0 0.4rem;'>Score Distribution</p>", unsafe_allow_html=True)
-    st.bar_chart(
-        filtered[filtered["risk_score"] > 0]["risk_score"]
-        .value_counts(bins=10)
-        .sort_index(),
-        color="#0ea5e9",
-    )
 
 top3 = filtered.nlargest(3, "risk_score")[["FacilityName", "County", "risk_score"]]
 top3_text = "; ".join(
@@ -782,9 +759,9 @@ with proj_col2:
             st.session_state[summary_key] = llm_year_summary(custom_year, trends, top3_text, llm_client)
     if summary_key in st.session_state:
         st.markdown(
-            f"<div style='background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; "
-            f"padding:1rem; font-size:0.85rem; color:#a8c4e0;'>"
-            f"<b style='color:#38bdf8;'>{custom_year} outlook</b><br><br>"
+            f"<div style='background:#ffffff; border:1px solid #90c4e8; border-radius:8px; "
+            f"padding:1rem; font-size:0.85rem; color:#000000;'>"
+            f"<b style='color:#000000;'>{custom_year} outlook</b><br><br>"
             f"{st.session_state[summary_key]}</div>",
             unsafe_allow_html=True,
         )
@@ -820,7 +797,7 @@ system_prompt = f"""You are a water contamination risk analyst for Connecticut.
 Current map state:
 - Viewing year: {projection_year} {"(projected)" if is_future else "(current data)"}
 - Pathway: {pathway}
-- Season: {season}, Rainfall: {rainfall} in/month, Temp: {temp_f}°F, Soil: {soil_type}
+- Rainfall: {rainfall} in/month
 - Risk multiplier: {combined_mult:.2f}x
 - Facilities shown: {len(filtered)}
 - Top facilities by risk: {top3_text}
