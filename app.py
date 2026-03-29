@@ -1,5 +1,7 @@
 """Streamlit app — Connecticut water contamination risk heatmap."""
 
+import math
+import re
 import numpy as np
 import pandas as pd
 import folium
@@ -7,8 +9,15 @@ import streamlit as st
 from folium.plugins import HeatMap
 from pathlib import Path
 from streamlit_folium import st_folium
+from openai import OpenAI
 
 ROOT = Path(__file__).resolve().parent
+
+# Local LLaMA server (Ollama default port — change to 1234 if using LM Studio)
+llm_client = OpenAI(
+    base_url="http://127.0.0.1:11434/v1",
+    api_key="not-needed",
+)
 
 st.set_page_config(page_title="CT Water Risk", layout="wide", page_icon="💧")
 
@@ -190,8 +199,152 @@ def load_releases():
         "breakdown":     breakdown,
     }
 
+@st.cache_data
+def load_trends():
+    """Compute per-facility and per-county CAGR from 2020→2022 aggmicro data."""
+    AGG_COLS = ["X", "Y", "ToxConc"]
+    fac = pd.read_parquet(ROOT / "data" / "processed" / "facility.parquet",
+        columns=["FacilityNumber", "FacilityName", "State", "FinalCOMID",
+                 "WaterReleases", "X", "Y", "County"])
+    ct = fac[fac["State"] == "CT"].copy()
+
+    raw_2020 = ROOT / "data" / "raw" / "aggmicro2022_2020.csv"
+    agg_2020 = pd.read_csv(raw_2020, skiprows=2, header=None,
+        names=["GridCode","X","Y","NumFacs","NumReleases","NumChems",
+               "ToxConc","Score","Pop","CTConc","NCTConc"],
+        dtype={"X":"Int16","Y":"Int16","ToxConc":"float64"},
+        usecols=["X","Y","ToxConc"])
+    agg_2022 = pd.read_parquet(ROOT / "data" / "processed" / "aggmicro.parquet",
+        columns=["X","Y","ToxConc"])
+
+    def merge(agg):
+        m = ct.merge(agg, on=["X","Y"], how="inner")
+        m = m[m["WaterReleases"] == True]
+        m["ToxConc"] = m["ToxConc"].fillna(0)
+        return m.set_index("FacilityNumber")
+
+    f20 = merge(agg_2020)
+    f22 = merge(agg_2022)
+    common = f20.index.intersection(f22.index)
+
+    rows = []
+    for fnum in common:
+        t20 = float(f20.loc[fnum, "ToxConc"]) if not pd.isna(f20.loc[fnum, "ToxConc"]) else 0
+        t22 = float(f22.loc[fnum, "ToxConc"]) if not pd.isna(f22.loc[fnum, "ToxConc"]) else 0
+        if t20 <= 0:
+            continue
+        rate = max(-0.30, min(0.30, (t22 / t20) ** 0.5 - 1))
+        rows.append({
+            "FacilityName": f22.loc[fnum, "FacilityName"],
+            "County":       f22.loc[fnum, "County"],
+            "tox22":        t22,
+            "annual_rate":  rate,
+        })
+    return pd.DataFrame(rows)
+
+
+def project_tox(tox22, annual_rate, target_year, base_year=2022):
+    years_out = target_year - base_year
+    return max(0.0, tox22 * ((1 + annual_rate) ** years_out))
+
+
+def build_future_context(query, trends):
+    """If the query mentions a future year, compute projections and return context string."""
+    years = [int(y) for y in re.findall(r'\b(202[6-9]|20[3-4]\d|2050)\b', query)]
+    if not years:
+        return ""
+
+    year = years[0]
+    lines = [f"Computed projections for {year} (extrapolated from 2020–2022 trends, ±30%/yr cap):"]
+
+    # County match
+    county_matches = [c for c in trends["County"].dropna().unique()
+                      if c.lower() in query.lower()]
+    for county in county_matches:
+        rows = trends[trends["County"] == county]
+        total_tox22 = rows["tox22"].sum()
+        avg_rate = ((rows["annual_rate"] * rows["tox22"]).sum() / total_tox22
+                    if total_tox22 > 0 else 0)
+        proj = project_tox(total_tox22, avg_rate, year)
+        lines.append(f"- {county} County: {proj:,.0f} toxicity units projected in {year} "
+                     f"(2022 baseline: {total_tox22:,.0f}, trend: {avg_rate*100:+.1f}%/yr)")
+
+    # Facility name match (fuzzy: any word overlap)
+    query_words = set(re.sub(r'[^a-z ]', '', query.lower()).split())
+    for _, row in trends.iterrows():
+        name_words = set(row["FacilityName"].lower().split())
+        if len(name_words & query_words) >= 2:
+            proj = project_tox(row["tox22"], row["annual_rate"], year)
+            lines.append(f"- {row['FacilityName']}: {proj:,.0f} units projected in {year} "
+                         f"(2022: {row['tox22']:,.0f}, trend: {row['annual_rate']*100:+.1f}%/yr)")
+
+    # Statewide fallback if no specific entity matched
+    if len(lines) == 1:
+        total = trends["tox22"].sum()
+        avg_rate = ((trends["annual_rate"] * trends["tox22"]).sum() / total if total > 0 else 0)
+        proj = project_tox(total, avg_rate, year)
+        lines.append(f"- Connecticut statewide: {proj:,.0f} units projected in {year} "
+                     f"(2022 baseline: {total:,.0f}, trend: {avg_rate*100:+.1f}%/yr)")
+
+    horizon = year - 2022
+    if horizon <= 6:
+        lines.append("Uncertainty: low-moderate (near-term projection).")
+    elif horizon <= 15:
+        lines.append("Uncertainty: moderate. Policy or operational changes may alter outcomes.")
+    else:
+        lines.append("Uncertainty: high. Long-range projections assume business-as-usual.")
+
+    return "\n".join(lines)
+
+
+def get_llm_multipliers(year, trends_df, client):
+    """Ask the LLM to predict risk multipliers for each facility in a given year.
+    Returns a dict {FacilityName: multiplier} or empty dict on failure."""
+    years_out = year - 2022
+    top = trends_df.nlargest(10, "tox22")
+
+    lines = []
+    for _, r in top.iterrows():
+        lines.append(
+            f"- {r['FacilityName']} ({r['County']}): tox2022={r['tox22']:.0f}, "
+            f"annual_trend={r['annual_rate']*100:+.1f}%"
+        )
+    facility_list = "\n".join(lines)
+
+    prompt = f"""You are a water contamination risk analyst.
+Below are Connecticut industrial facilities with their 2022 toxicity levels and observed 2020-2022 annual trend rates.
+Predict a risk multiplier for each facility in {year} (i.e., projected_tox / tox2022).
+Consider: trend trajectory, regulatory likelihood for this industry, typical plateau/decline patterns.
+Respond ONLY with a JSON object mapping facility name to multiplier, e.g.:
+{{"FACILITY A": 1.4, "FACILITY B": 0.7}}
+
+Facilities:
+{facility_list}
+
+JSON:"""
+
+    try:
+        resp = client.chat.completions.create(
+            model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=200,
+        )
+        text = resp.choices[0].message.content.strip()
+        # Extract JSON from response
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            import json
+            return json.loads(text[start:end])
+    except Exception:
+        pass
+    return {}
+
+
 df = load_data()
 rel_stats = load_releases()
+trends = load_trends()
 
 # ---------------------------------------------------------------------------
 # Sidebar — filters
@@ -301,6 +454,12 @@ soil_type = st.sidebar.selectbox(
     help="Controls how much surface runoff vs. groundwater infiltration occurs.",
 )
 
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Future Projection")
+st.sidebar.caption("Scales the heatmap by projected facility toxicity.")
+projection_year = st.sidebar.slider("Projection Year", 2022, 2050, 2022, 2)
+is_future = projection_year > 2022
+
 # --- Compute environmental modifiers ---
 rainfall_weight_mult = 1.0 + (rainfall / 10.0) * 0.4
 rainfall_radius_mult = 1.0 + (rainfall / 10.0) * 0.6
@@ -362,11 +521,48 @@ st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 CT_CENTER = [41.6, -72.7]
 m = folium.Map(location=CT_CENTER, zoom_start=9, tiles="CartoDB dark_matter")
 
-heat_data = [
-    [row["Latitude"], row["Longitude"], min(row["weight"] * combined_mult, 1.0)]
-    for _, row in filtered.iterrows()
-    if row["weight"] > 0
-]
+if is_future:
+    cache_key = f"llm_mult_{projection_year}"
+    if cache_key not in st.session_state:
+        # Show CAGR heatmap immediately; fetch LLM multipliers for top 10 in background
+        st.session_state[cache_key] = {}
+        st.toast(f"Fetching LLM risk adjustments for {projection_year}…")
+        st.session_state[cache_key] = get_llm_multipliers(projection_year, trends, llm_client)
+        st.rerun()
+    llm_mults = st.session_state[cache_key]
+
+    proj_lookup = trends.groupby("FacilityName").first()[["tox22", "annual_rate"]]
+    filt_ext = filtered.join(proj_lookup, on="FacilityName", how="left").copy()
+    filt_ext["tox22"] = filt_ext["tox22"].fillna(0).values.astype(float)
+    filt_ext["annual_rate"] = filt_ext["annual_rate"].fillna(0).values.astype(float)
+    years_out = projection_year - 2022
+
+    # Use LLM multiplier where available, fall back to CAGR
+    t22 = filt_ext["tox22"].values
+    rate = filt_ext["annual_rate"].values
+    cagr_scale = np.where(t22 > 0, ((1 + rate) ** years_out), 1.0)
+    llm_scale = np.array([
+        llm_mults.get(name, 0) for name in filt_ext["FacilityName"].values
+    ])
+    scale = np.where(llm_scale > 0, llm_scale, cagr_scale)
+
+    weights = filt_ext["weight"].values * scale
+    weights = np.clip(weights, 0, None)
+    max_w = weights.max()
+    if max_w > 0:
+        weights = weights / max_w
+    lats = filt_ext["Latitude"].values
+    lons = filt_ext["Longitude"].values
+    heat_data = [
+        [float(lats[i]), float(lons[i]), min(float(weights[i]) * combined_mult, 1.0)]
+        for i in range(len(filt_ext)) if weights[i] > 0
+    ]
+else:
+    heat_data = [
+        [row["Latitude"], row["Longitude"], min(row["weight"] * combined_mult, 1.0)]
+        for _, row in filtered.iterrows()
+        if row["weight"] > 0
+    ]
 
 if heat_data:
     HeatMap(
@@ -454,3 +650,118 @@ with col2:
         .sort_index(),
         color="#0ea5e9",
     )
+
+top3 = filtered.nlargest(3, "segment_score")[["FacilityName", "County", "segment_score"]]
+top3_text = "; ".join(
+    f"{r['FacilityName']} ({r['County']}, score {r['segment_score']:.2f})"
+    for _, r in top3.iterrows()
+)
+
+# ---------------------------------------------------------------------------
+# Future risk summary + year input
+# ---------------------------------------------------------------------------
+
+def llm_year_summary(year, trends, top3_text, client):
+    future_ctx = build_future_context(
+        f"What is the projected water contamination risk for Connecticut in {year}?",
+        trends,
+    )
+    prompt = f"""You are a water contamination risk analyst for Connecticut.
+{future_ctx}
+Top facilities by current risk: {top3_text}
+
+In 2-3 sentences, summarize the projected water contamination outlook for Connecticut in {year}. Mention the most concerning counties or facilities and what the trend implies."""
+    try:
+        resp = client.chat.completions.create(
+            model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=200,
+        )
+        return resp.choices[0].message.content
+    except Exception as e:
+        return f"Could not generate summary: {e}"
+
+
+st.markdown("<hr style='margin: 1.5rem 0;'>", unsafe_allow_html=True)
+st.markdown("<p style='font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:#38bdf8;'>Risk Projection</p>", unsafe_allow_html=True)
+
+proj_col1, proj_col2 = st.columns([1, 3])
+with proj_col1:
+    custom_year = st.number_input("Enter any year", min_value=2023, max_value=2100, value=int(projection_year) if is_future else 2030, step=1)
+    run_proj = st.button("Predict")
+
+with proj_col2:
+    summary_key = f"proj_summary_{custom_year}"
+    if run_proj or (is_future and projection_year == custom_year and summary_key not in st.session_state):
+        with st.spinner(f"Generating outlook for {custom_year}…"):
+            st.session_state[summary_key] = llm_year_summary(custom_year, trends, top3_text, llm_client)
+    if summary_key in st.session_state:
+        st.markdown(
+            f"<div style='background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; "
+            f"padding:1rem; font-size:0.85rem; color:#a8c4e0;'>"
+            f"<b style='color:#38bdf8;'>{custom_year} outlook</b><br><br>"
+            f"{st.session_state[summary_key]}</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown("<p style='color:#4a6080; font-size:0.85rem;'>Enter a year and click Predict to generate an LLM risk outlook.</p>", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# LLaMA risk assistant
+# ---------------------------------------------------------------------------
+
+st.markdown("<hr style='margin: 1.5rem 0;'>", unsafe_allow_html=True)
+st.markdown("""
+<p style='font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:#38bdf8;'>
+  Risk Assistant
+</p>
+<p style='font-size:0.85rem; color:#8fadc7; margin-top:0.2rem;'>
+  Ask anything about the current map, facilities, or conditions.
+</p>
+""", unsafe_allow_html=True)
+
+system_prompt = f"""You are a water contamination risk analyst for Connecticut.
+Current map state:
+- Viewing year: {projection_year} {"(projected)" if is_future else "(current data)"}
+- Pathway: {pathway}
+- Season: {season}, Rainfall: {rainfall} in/month, Temp: {temp_f}°F, Soil: {soil_type}
+- Risk multiplier: {combined_mult:.2f}x
+- Facilities shown: {len(filtered)}
+- Top facilities by risk: {top3_text}
+Answer concisely and ground your response in the data above."""
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+for msg in st.session_state.chat_history:
+    role_color = "#e0eaff" if msg["role"] == "user" else "#38bdf8"
+    role_label = "You" if msg["role"] == "user" else "LLaMA"
+    st.markdown(
+        f"<div style='margin:0.4rem 0; font-size:0.85rem;'>"
+        f"<span style='color:{role_color}; font-weight:600;'>{role_label}:</span> "
+        f"<span style='color:#a8c4e0;'>{msg['content']}</span></div>",
+        unsafe_allow_html=True,
+    )
+
+user_input = st.chat_input("Ask about risk, facilities, or conditions...")
+
+if user_input:
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
+
+    future_ctx = build_future_context(user_input, trends)
+    active_system = (system_prompt + "\n\n" + future_ctx) if future_ctx else system_prompt
+    messages = [{"role": "system", "content": active_system}] + st.session_state.chat_history
+
+    try:
+        response = llm_client.chat.completions.create(
+            model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+            messages=messages,
+            temperature=0.7,
+        )
+        reply = response.choices[0].message.content
+    except Exception as e:
+        reply = f"Could not reach local model: {e}"
+
+    st.session_state.chat_history.append({"role": "assistant", "content": reply})
+    st.rerun()

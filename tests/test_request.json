@@ -1,0 +1,5 @@
+{
+  "model": "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+  "messages": [{"role": "user", "content": "What is the highest-risk facility in Hartford County, CT?"}],
+  "max_tokens": 300
+}
