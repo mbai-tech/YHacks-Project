@@ -209,6 +209,114 @@ DATASET_CONFIG: dict[str, dict] = {
         },
         "chunksize": None,
     },
+
+    # ----- CWNS wastewater plant tables -----
+
+    "cwns_facilities": {
+        "file": "FACILITIES.csv",
+        "encoding": "utf-8",
+        "dtype": {
+            "CWNS_ID":              "string",
+            "FACILITY_ID":          "string",
+            "STATE_CODE":           "string",
+            "INFRASTRUCTURE_TYPE":  "string",
+            "FACILITY_NAME":        "string",
+            "DESCRIPTION":          "string",
+            "OWNER_TYPE":           "string",
+            "SUPERFUND_FLAG":       "string",
+            "SEMS_ID":              "string",
+            "SCF_ELIGIBLE":         "string",
+            "REVIEW_STATUS":        "string",
+            "REVIEW_TYPE":          "string",
+            "DATE_LAST_MODIFIED":   "string",
+            "NO_NEEDS":             "string",
+        },
+        "chunksize": None,
+    },
+
+    "cwns_locations": {
+        "file": "PHYSICAL_LOCATION.csv",
+        "encoding": "utf-8",
+        "dtype": {
+            "CWNS_ID":        "string",
+            "FACILITY_ID":    "string",
+            "LOCATION_TYPE":  "string",
+            "LATITUDE":       "float64",
+            "LONGITUDE":      "float64",
+            "DATUM":          "string",
+            "ADDRESS":        "string",
+            "ADDRESS_2":      "string",
+            "CITY":           "string",
+            "STATE_CODE":     "string",
+            "ZIP_CODE":       "string",
+            "COUNTY_FIPS":    "string",
+            "COUNTY_NAME":    "string",
+        },
+        "chunksize": None,
+    },
+
+    "cwns_population": {
+        "file": "POPULATION_WASTEWATER.csv",
+        "encoding": "utf-8",
+        "dtype": {
+            "CWNS_ID":                              "string",
+            "FACILITY_ID":                          "string",
+            "STATE_CODE":                           "string",
+            "INFRASTRUCTURE_TYPE":                  "string",
+            "POPULATION_TYPE":                      "string",
+            "RESIDENTIAL_POP_2022":                 "float64",
+            "RESIDENTIAL_POP_2042":                 "float64",
+            "NONRESIDENTIAL_POP_2022":              "float64",
+            "NONRESIDENTIAL_POP_2042":              "float64",
+            "TOTAL_RES_POPULATION_2022":            "float64",
+            "TOTAL_RES_POPULATION_2042":            "float64",
+            "TOTAL_NONRES_POPULATION_2022":         "float64",
+            "TOTAL_NONRES_POPULATION_2042":         "float64",
+            "TREATED_DISCHARGE_PERCENTAGE_2022":    "float64",
+            "TREATED_DISCHARGE_PERCENTAGE_2042":    "float64",
+            "NET_TREATED_POPULATION_2022":          "float64",
+            "NET_TREATED_POPULATION_2042":          "float64",
+            "NO_DISCHARGE_PERCENTAGE_2022":         "float64",
+            "NO_DISCHARGE_PERCENTAGE_2042":         "float64",
+            "NO_DISCHARGE_POPULATION_2022":         "float64",
+            "NO_DISCHARGE_POPULATION_2042":         "float64",
+            "PART_OF_SEWERSHED":                    "string",
+            "END_FACILITY":                         "string",
+        },
+        "chunksize": None,
+    },
+
+    "cwns_discharges": {
+        "file": "DISCHARGES.csv",
+        "encoding": "utf-8",
+        "dtype": {
+            "CWNS_ID":                         "string",
+            "FACILITY_ID":                     "string",
+            "STATE_CODE":                      "string",
+            "DISCHARGE_TYPE":                  "string",
+            "PRESENT_DISCHARGE_PERCENTAGE":    "float64",
+            "PROJECTED_DISCHARGE_PERCENTAGE":  "float64",
+            "DISCHARGES_TO_CWNSID":            "string",
+        },
+        "chunksize": None,
+    },
+
+    # ----- SDWA (Safe Drinking Water Act) tables -----
+
+    "sdwa_water_systems": {
+        "file": "SDWA_PUB_WATER_SYSTEMS.csv",
+        "encoding": "utf-8",
+        "dtype": "string",       # read everything as string, coerce later
+        "coerce_numeric": ["POPULATION_SERVED_COUNT", "SERVICE_CONNECTIONS_COUNT"],
+        "chunksize": None,
+    },
+
+    "sdwa_violations": {
+        "file": "SDWA_PN_VIOLATION_ASSOC.csv",
+        "encoding": "utf-8",
+        "dtype": "string",
+        "chunksize": None,
+    },
 }
 
 # ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ from folium.plugins import HeatMap
 from pathlib import Path
 from streamlit_folium import st_folium
 from openai import OpenAI
+from scripts.spatial_index import FacilityIndex
 
 ROOT = Path(__file__).resolve().parent
 
@@ -143,12 +144,22 @@ st.markdown("""
 
 @st.cache_data
 def load_data():
-    fac = pd.read_parquet(ROOT / "data" / "interim" / "facilities_clean.parquet")
+    fac = pd.read_parquet(ROOT / "data" / "processed" / "facilities_clean.parquet")
     stream = pd.read_parquet(ROOT / "data" / "processed" / "stream_scores.parquet")
     merged = fac.merge(stream[["FinalCOMID", "segment_score"]], on="FinalCOMID", how="left")
     merged["segment_score"] = merged["segment_score"].fillna(0)
-    max_score = merged["segment_score"].max()
-    merged["weight"] = merged["segment_score"] / max_score if max_score > 0 else 0
+
+    # Load precomputed blended risk scores
+    risk_path = ROOT / "data" / "processed" / "facility_risk_scores.parquet"
+    if risk_path.exists():
+        risk_df = pd.read_parquet(risk_path)
+        merged = merged.merge(risk_df, on="FacilityNumber", how="left")
+        merged["risk_score"] = merged["risk_score"].fillna(0)
+    else:
+        merged["risk_score"] = merged["segment_score"]
+
+    max_risk = merged["risk_score"].max()
+    merged["weight"] = merged["risk_score"] / max_risk if max_risk > 0 else 0
     return merged
 
 @st.cache_data
@@ -241,6 +252,11 @@ def load_trends():
             "annual_rate":  rate,
         })
     return pd.DataFrame(rows)
+
+
+@st.cache_resource
+def load_facility_index():
+    return FacilityIndex()
 
 
 def project_tox(tox22, annual_rate, target_year, base_year=2022):
@@ -345,6 +361,7 @@ JSON:"""
 df = load_data()
 rel_stats = load_releases()
 trends = load_trends()
+facility_idx = load_facility_index()
 
 # ---------------------------------------------------------------------------
 # Sidebar — filters
@@ -353,12 +370,12 @@ trends = load_trends()
 st.sidebar.markdown("### Facility Filters")
 
 show_water_only = st.sidebar.checkbox("Water-releasing facilities only", value=True)
-min_score = st.sidebar.slider("Minimum segment score", 0.0, float(df["segment_score"].max()), 0.0, 0.1)
+min_score = st.sidebar.slider("Minimum risk score", 0.0, float(df["risk_score"].max()), 0.0, 1.0)
 
 filtered = df.copy()
 if show_water_only:
     filtered = filtered[filtered["WaterReleases"] == True]
-filtered = filtered[filtered["segment_score"] >= min_score]
+filtered = filtered[filtered["risk_score"] >= min_score]
 
 st.sidebar.markdown(f"<span style='color:#5bc8f5; font-size:0.8rem;'>▸ **{len(filtered):,}** facilities shown</span>", unsafe_allow_html=True)
 
@@ -503,8 +520,8 @@ st.sidebar.markdown(f"""
 
 m1, m2, m3, m4, m5 = st.columns(5)
 m1.metric("Facilities", f"{len(filtered):,}")
-m2.metric("Avg Score", f"{filtered['segment_score'].mean():.1f}")
-m3.metric("Max Score", f"{filtered['segment_score'].max():.1f}")
+m2.metric("Avg Risk", f"{filtered['risk_score'].mean():.1f}")
+m3.metric("Max Risk", f"{filtered['risk_score'].max():.1f}")
 m4.metric("Risk Multiplier", f"{env_weight_mult:.2f}×")
 m5.metric(
     "Lbs to Water" if pathway == "Both" else f"Lbs ({pathway})",
@@ -573,7 +590,7 @@ if heat_data:
         gradient=pw["gradient"],
     ).add_to(m)
 
-top = filtered.nlargest(20, "segment_score")
+top = filtered.nlargest(20, "risk_score")
 for _, row in top.iterrows():
     folium.CircleMarker(
         location=[row["Latitude"], row["Longitude"]],
@@ -586,7 +603,7 @@ for _, row in top.iterrows():
             f"<div style='font-family:monospace; font-size:12px;'>"
             f"<b style='color:#ff5533'>{row['FacilityName']}</b><br>"
             f"<span style='color:#888'>County:</span> {row['County']}<br>"
-            f"<span style='color:#888'>Score:</span> {row['segment_score']:.2f}<br>"
+            f"<span style='color:#888'>Risk:</span> {row['risk_score']:.1f}<br>"
             f"<span style='color:#888'>NAICS:</span> {row['ModeledNAICS']}"
             f"</div>"
         ),
@@ -599,13 +616,80 @@ for _, row in top.iterrows():
 col1, col2 = st.columns([3, 1])
 
 with col1:
-    st_folium(m, width=None, height=580)
+    map_data = st_folium(m, width=None, height=580)
 
 with col2:
+    # --- Location risk panel (click on map) ---
+    clicked = None
+    if map_data and map_data.get("last_clicked"):
+        clicked = map_data["last_clicked"]
+
+    if clicked:
+        clat, clon = clicked["lat"], clicked["lng"]
+        risk = facility_idx.compute_location_risk(clat, clon)
+
+        # Color by score
+        if risk.score < 30:
+            score_color, label = "#4ade80", "Low"
+        elif risk.score < 60:
+            score_color, label = "#fbbf24", "Moderate"
+        else:
+            score_color, label = "#f87171", "High"
+
+        st.markdown(f"""
+        <div style="background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;">
+          <p style="font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#38bdf8; margin:0 0 0.3rem 0;">
+            Location Risk · {clat:.4f}, {clon:.4f}
+          </p>
+          <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.6rem;">
+            <span style="font-size:1.8rem; font-weight:800; color:{score_color};">{risk.score}</span>
+            <span style="font-size:0.75rem; color:{score_color}; font-weight:600;">{label}</span>
+            <span style="font-size:0.65rem; color:#4a6080;">/ 100</span>
+          </div>
+          <table style="font-size:0.72rem; border-collapse:collapse; width:100%;">
+            <tr><td style="color:#8fadc7; padding:2px 0;">Industrial Facilities</td>
+                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.facility_score}</td>
+                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">30%</td></tr>
+            <tr><td style="color:#8fadc7; padding:2px 0;">Stream Contamination</td>
+                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.downstream_score}</td>
+                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">20%</td></tr>
+            <tr><td style="color:#8fadc7; padding:2px 0;">Wastewater Plants</td>
+                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.wastewater_score}</td>
+                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">25%</td></tr>
+            <tr><td style="color:#8fadc7; padding:2px 0;">Drinking Water (SDWA)</td>
+                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.sdwa_score}</td>
+                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">25%</td></tr>
+          </table>
+          <div style="margin-top:0.5rem; font-size:0.65rem; color:#4a6080; border-top:1px solid #1f2d3d; padding-top:0.4rem;">
+            {risk.facility_count} facilities · {risk.wastewater_plant_count} WW plants · {risk.sdwa_system_count} water systems nearby
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if not risk.top_contributors.empty:
+            st.markdown("<p style='font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin:0 0 0.3rem 0;'>Top Contributors</p>", unsafe_allow_html=True)
+            st.dataframe(
+                risk.top_contributors.rename(columns={
+                    "FacilityName": "Facility",
+                    "TotalWaterImpactScore": "Impact",
+                    "distance_km": "Dist (km)",
+                    "contribution": "Score",
+                }).reset_index(drop=True),
+                use_container_width=True,
+                hide_index=True,
+            )
+    else:
+        st.markdown(
+            "<div style='background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;'>"
+            "<p style='font-size:0.75rem; color:#4a6080; margin:0;'>Click anywhere on the map to compute a location risk score.</p>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
     st.markdown("<p style='font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin-bottom:0.4rem;'>Top 10 Facilities</p>", unsafe_allow_html=True)
     st.dataframe(
-        filtered.nlargest(10, "segment_score")[["FacilityName", "County", "segment_score"]]
-        .rename(columns={"FacilityName": "Facility", "segment_score": "Score"})
+        filtered.nlargest(10, "risk_score")[["FacilityName", "County", "risk_score"]]
+        .rename(columns={"FacilityName": "Facility", "risk_score": "Score"})
         .reset_index(drop=True),
         use_container_width=True,
         hide_index=True,
@@ -645,15 +729,15 @@ with col2:
 
     st.markdown("<p style='font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin:1rem 0 0.4rem;'>Score Distribution</p>", unsafe_allow_html=True)
     st.bar_chart(
-        filtered[filtered["segment_score"] > 0]["segment_score"]
+        filtered[filtered["risk_score"] > 0]["risk_score"]
         .value_counts(bins=10)
         .sort_index(),
         color="#0ea5e9",
     )
 
-top3 = filtered.nlargest(3, "segment_score")[["FacilityName", "County", "segment_score"]]
+top3 = filtered.nlargest(3, "risk_score")[["FacilityName", "County", "risk_score"]]
 top3_text = "; ".join(
-    f"{r['FacilityName']} ({r['County']}, score {r['segment_score']:.2f})"
+    f"{r['FacilityName']} ({r['County']}, risk {r['risk_score']:.1f})"
     for _, r in top3.iterrows()
 )
 
@@ -721,6 +805,17 @@ st.markdown("""
 </p>
 """, unsafe_allow_html=True)
 
+location_ctx = ""
+if clicked:
+    location_ctx = f"""
+Selected location: {clat:.4f}, {clon:.4f}
+- Overall risk score: {risk.score}/100
+- Industrial facility score: {risk.facility_score}/100 ({risk.facility_count} facilities)
+- Stream contamination score: {risk.downstream_score}/100
+- Wastewater plant score: {risk.wastewater_score}/100 ({risk.wastewater_plant_count} plants)
+- Drinking water violations (SDWA): {risk.sdwa_score}/100 ({risk.sdwa_system_count} systems)
+- Top contributors: {', '.join(f"{r['Facility']} ({r['Dist (km)']:.1f} km)" for _, r in risk.top_contributors.rename(columns={"FacilityName":"Facility","distance_km":"Dist (km)"}).iterrows()) if not risk.top_contributors.empty else 'none'}"""
+
 system_prompt = f"""You are a water contamination risk analyst for Connecticut.
 Current map state:
 - Viewing year: {projection_year} {"(projected)" if is_future else "(current data)"}
@@ -729,6 +824,7 @@ Current map state:
 - Risk multiplier: {combined_mult:.2f}x
 - Facilities shown: {len(filtered)}
 - Top facilities by risk: {top3_text}
+{location_ctx}
 Answer concisely and ground your response in the data above."""
 
 if "chat_history" not in st.session_state:
