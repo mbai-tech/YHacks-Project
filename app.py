@@ -28,97 +28,68 @@ st.set_page_config(page_title="CT Water Risk", layout="wide", page_icon="💧")
 
 st.markdown("""
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
-  /* ── global ── */
   html, body, [class*="css"], [data-testid="stAppViewContainer"] {
-    font-family: 'DM Sans', sans-serif;
-    background: #0e1117;
-    color: #dce8f0;
+    font-family: 'Inter', sans-serif;
+    background: #f0f6fb;
+    color: #0f172a;
   }
   [data-testid="stHeader"] { background: transparent; }
 
-  /* ── sidebar ── */
   [data-testid="stSidebar"] {
-    background: #13181f;
-    border-right: 1px solid #1f2d3d;
+    background: #ffffff;
+    border-right: 1px solid #e2eaf2;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.04);
   }
-  [data-testid="stSidebar"] * {
-    font-family: 'DM Sans', sans-serif !important;
-    color: #8fadc7 !important;
-  }
-  [data-testid="stSidebar"] h1,
-  [data-testid="stSidebar"] h2,
-  [data-testid="stSidebar"] h3 {
-    color: #38bdf8 !important;
-    font-size: 0.72rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+  [data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; color: #0f172a !important; }
+  [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    color: #0369a1 !important; font-size: 0.68rem !important; font-weight: 700 !important;
+    letter-spacing: 0.12em; text-transform: uppercase;
   }
 
-  /* ── slider accent ── */
-  [data-testid="stSlider"] > div > div > div > div {
-    background: #0ea5e9;
-  }
+  [data-testid="stSlider"] > div > div > div > div { background: #0ea5e9; }
 
-  /* ── metric cards ── */
   [data-testid="stMetric"] {
-    background: #13181f;
-    border: 1px solid #1f2d3d;
-    border-radius: 8px;
-    padding: 12px 16px;
+    background: #ffffff; border: 1px solid #e2eaf2; border-radius: 12px;
+    padding: 14px 18px; box-shadow: 0 1px 6px rgba(0,0,0,0.06);
   }
   [data-testid="stMetricLabel"] {
-    font-family: 'DM Mono', monospace !important;
-    color: #38bdf8 !important;
-    font-size: 0.65rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-family: 'DM Mono', monospace !important; color: #64748b !important;
+    font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
   }
   [data-testid="stMetricValue"] {
-    font-family: 'DM Sans', sans-serif !important;
-    color: #dce8f0 !important;
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-family: 'Inter', sans-serif !important; color: #0f172a !important;
+    font-size: 1.6rem; font-weight: 700;
   }
 
-  /* ── dataframe ── */
-  [data-testid="stDataFrame"] { border: 1px solid #1f2d3d; border-radius: 8px; overflow: hidden; }
+  [data-testid="stDataFrame"], [data-testid="stDataFrame"] > div,
+  .stDataFrame, .stDataFrame > div {
+    background: #ffffff !important; border: 1px solid #e2eaf2 !important;
+    border-radius: 12px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
   .stDataFrame thead th {
-    font-family: 'DM Mono', monospace !important;
-    background: #13181f !important;
-    color: #38bdf8 !important;
-    font-size: 0.65rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-family: 'DM Mono', monospace !important; background: #f8fafc !important;
+    color: #64748b !important; font-size: 0.62rem; letter-spacing: 0.08em;
+    text-transform: uppercase; border-bottom: 1px solid #e2eaf2 !important;
   }
-  .stDataFrame tbody tr:nth-child(even) { background: #0e1117 !important; }
-  .stDataFrame tbody tr:hover { background: #1a2535 !important; }
+  .stDataFrame tbody tr { background: #ffffff !important; }
+  .stDataFrame tbody tr:nth-child(even) { background: #f8fafc !important; }
+  .stDataFrame tbody tr:hover { background: #e0f2fe !important; }
+  .stDataFrame td, .stDataFrame th { color: #0f172a !important; }
 
-  /* ── section divider ── */
-  hr { border-color: #1f2d3d; }
-
-  /* ── hide default streamlit chrome ── */
+  hr { border-color: #e2eaf2; }
   #MainMenu, footer { visibility: hidden; }
+  iframe { border-radius: 14px; border: 1px solid #e2eaf2 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #ffffff !important; }
 
-  /* ── map container ── */
-  iframe { border-radius: 10px; border: 1px solid #1f2d3d; }
-
-  /* ── risk badge ── */
   .risk-badge {
-    display: inline-block;
-    padding: 3px 12px;
-    border-radius: 4px;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
   }
-  .risk-low    { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-  .risk-medium { background: #1c1400; color: #fbbf24; border: 1px solid #92400e; }
-  .risk-high   { background: #2d0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+  .risk-low    { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+  .risk-medium { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
+  .risk-high   { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -127,13 +98,14 @@ st.markdown("""
 # ---------------------------------------------------------------------------
 
 st.markdown("""
-<div style="padding: 1.2rem 0 0.4rem 0;">
-  <span style="font-size:0.75rem; letter-spacing:0.15em; color:#5bc8f5; text-transform:uppercase;">
+<div style="padding: 1.2rem 0 0.5rem 0;">
+  <span style="font-size:0.72rem; letter-spacing:0.14em; color:#0369a1; text-transform:uppercase; font-weight:600;">
     EPA RSEI v23.12 · Industrial Facility Water Releases
   </span>
-  <h1 style="margin:0.2rem 0 0 0; font-size:2rem; font-weight:800; color:#e0eaff; line-height:1.1;">
-    Connecticut Water<br>Contamination Risk
+  <h1 style="margin:0.3rem 0 0.2rem 0; font-size:2.2rem; font-weight:800; color:#0f172a; line-height:1.1; font-family:'Inter',sans-serif;">
+    Aqua Risk Explorer
   </h1>
+  <p style="margin:0; font-size:0.9rem; color:#64748b;">Interactive proxy-based water contamination planning for Connecticut communities.</p>
 </div>
 <hr style="margin: 0.8rem 0 1.2rem 0;">
 """, unsafe_allow_html=True)
@@ -313,49 +285,6 @@ def build_future_context(query, trends):
     return "\n".join(lines)
 
 
-def get_llm_multipliers(year, trends_df, client):
-    """Ask the LLM to predict risk multipliers for each facility in a given year.
-    Returns a dict {FacilityName: multiplier} or empty dict on failure."""
-    years_out = year - 2022
-    top = trends_df.nlargest(10, "tox22")
-
-    lines = []
-    for _, r in top.iterrows():
-        lines.append(
-            f"- {r['FacilityName']} ({r['County']}): tox2022={r['tox22']:.0f}, "
-            f"annual_trend={r['annual_rate']*100:+.1f}%"
-        )
-    facility_list = "\n".join(lines)
-
-    prompt = f"""You are a water contamination risk analyst.
-Below are Connecticut industrial facilities with their 2022 toxicity levels and observed 2020-2022 annual trend rates.
-Predict a risk multiplier for each facility in {year} (i.e., projected_tox / tox2022).
-Consider: trend trajectory, regulatory likelihood for this industry, typical plateau/decline patterns.
-Respond ONLY with a JSON object mapping facility name to multiplier, e.g.:
-{{"FACILITY A": 1.4, "FACILITY B": 0.7}}
-
-Facilities:
-{facility_list}
-
-JSON:"""
-
-    try:
-        resp = client.chat.completions.create(
-            model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=200,
-        )
-        text = resp.choices[0].message.content.strip()
-        # Extract JSON from response
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        if start >= 0 and end > start:
-            import json
-            return json.loads(text[start:end])
-    except Exception:
-        pass
-    return {}
 
 
 df = load_data()
@@ -458,72 +387,27 @@ rainfall = st.sidebar.slider(
     "Monthly Rainfall (in)", 0.0, 10.0, 3.5, 0.5,
     help="Higher rainfall increases runoff, spreading contaminants further downstream.",
 )
-season = st.sidebar.selectbox(
-    "Season", ["Spring", "Summer", "Fall", "Winter"],
-    help="Season affects streamflow volume and contaminant dilution.",
-)
-temp_f = st.sidebar.slider(
-    "Temperature (°F)", 20, 95, 60, 5,
-    help="Higher temperatures accelerate chemical reactions and reduce dilution via evaporation.",
-)
-soil_type = st.sidebar.selectbox(
-    "Soil Permeability", ["Clay (low)", "Loam (medium)", "Sandy (high)"],
-    help="Controls how much surface runoff vs. groundwater infiltration occurs.",
-)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### Future Projection")
 st.sidebar.caption("Scales the heatmap by projected facility toxicity.")
-projection_year = st.sidebar.slider("Projection Year", 2022, 2050, 2022, 2)
+projection_year = st.sidebar.slider("Projection Year", 2022, 2050, 2022, 1)
 is_future = projection_year > 2022
 
-# --- Compute environmental modifiers ---
-rainfall_weight_mult = 1.0 + (rainfall / 10.0) * 0.4
-rainfall_radius_mult = 1.0 + (rainfall / 10.0) * 0.6
-rainfall_blur_mult   = 1.0 + (rainfall / 10.0) * 0.5
-season_mult = {"Spring": 1.2, "Summer": 1.5, "Fall": 1.0, "Winter": 0.5}[season]
-temp_mult = 0.7 + (temp_f - 20) / (95 - 20) * 0.6
-soil_weight_mult = {"Clay (low)": 1.3,  "Loam (medium)": 1.0, "Sandy (high)": 0.65}[soil_type]
-soil_radius_mult = {"Clay (low)": 1.15, "Loam (medium)": 1.0, "Sandy (high)": 0.85}[soil_type]
-
-env_weight_mult = rainfall_weight_mult * season_mult * temp_mult * soil_weight_mult
-env_radius      = int(20 * rainfall_radius_mult * soil_radius_mult)
-env_blur        = int(25 * rainfall_blur_mult)
-
-# Combined with pathway params (needed for sidebar display below)
-combined_mult   = env_weight_mult * pw["weight_mult"]
-combined_radius = max(8, int(env_radius * pw["radius_scale"]))
-combined_blur   = max(6, int(env_blur   * pw["blur_scale"]))
-
-# Risk level badge
-if env_weight_mult < 0.8:
-    badge = '<span class="risk-badge risk-low">Low Dispersion</span>'
-elif env_weight_mult < 1.4:
-    badge = '<span class="risk-badge risk-medium">Moderate Dispersion</span>'
-else:
-    badge = '<span class="risk-badge risk-high">High Dispersion</span>'
-
-st.sidebar.markdown(f"""
-<div style="margin-top:0.6rem;">
-  {badge}
-  <table style="margin-top:0.6rem; font-size:0.78rem; border-collapse:collapse; width:100%;">
-    <tr><td style="color:#38bdf8; padding:2px 0;">Weight mult</td><td style="text-align:right; color:#e0eaff; font-weight:600;">{combined_mult:.2f}×</td></tr>
-    <tr><td style="color:#38bdf8; padding:2px 0;">Spread radius</td><td style="text-align:right; color:#e0eaff; font-weight:600;">{combined_radius} px</td></tr>
-    <tr><td style="color:#38bdf8; padding:2px 0;">Blur</td><td style="text-align:right; color:#e0eaff; font-weight:600;">{combined_blur} px</td></tr>
-  </table>
-</div>
-""", unsafe_allow_html=True)
+# Compute heatmap params
+combined_mult   = (1.0 + (rainfall / 10.0) * 0.4) * pw["weight_mult"]
+combined_radius = max(8, int(20 * (1.0 + (rainfall / 10.0) * 0.6) * pw["radius_scale"]))
+combined_blur   = max(6, int(25 * (1.0 + (rainfall / 10.0) * 0.5) * pw["blur_scale"]))
 
 # ---------------------------------------------------------------------------
 # Summary metrics
 # ---------------------------------------------------------------------------
 
-m1, m2, m3, m4, m5 = st.columns(5)
+m1, m2, m3, m4 = st.columns(4)
 m1.metric("Facilities", f"{len(filtered):,}")
 m2.metric("Avg Risk", f"{filtered['risk_score'].mean():.1f}")
 m3.metric("Max Risk", f"{filtered['risk_score'].max():.1f}")
-m4.metric("Risk Multiplier", f"{env_weight_mult:.2f}×")
-m5.metric(
+m4.metric(
     "Lbs to Water" if pathway == "Both" else f"Lbs ({pathway})",
     f"{pathway_lbs/1e9:.1f}B",
     help="Total pounds released via selected water pathway across all RSEI facilities.",
@@ -539,29 +423,11 @@ CT_CENTER = [41.6, -72.7]
 m = folium.Map(location=CT_CENTER, zoom_start=9, tiles="CartoDB dark_matter")
 
 if is_future:
-    cache_key = f"llm_mult_{projection_year}"
-    if cache_key not in st.session_state:
-        # Show CAGR heatmap immediately; fetch LLM multipliers for top 10 in background
-        st.session_state[cache_key] = {}
-        st.toast(f"Fetching LLM risk adjustments for {projection_year}…")
-        st.session_state[cache_key] = get_llm_multipliers(projection_year, trends, llm_client)
-        st.rerun()
-    llm_mults = st.session_state[cache_key]
-
     proj_lookup = trends.groupby("FacilityName").first()[["tox22", "annual_rate"]]
     filt_ext = filtered.join(proj_lookup, on="FacilityName", how="left").copy()
-    filt_ext["tox22"] = filt_ext["tox22"].fillna(0).values.astype(float)
-    filt_ext["annual_rate"] = filt_ext["annual_rate"].fillna(0).values.astype(float)
-    years_out = projection_year - 2022
-
-    # Use LLM multiplier where available, fall back to CAGR
-    t22 = filt_ext["tox22"].values
-    rate = filt_ext["annual_rate"].values
-    cagr_scale = np.where(t22 > 0, ((1 + rate) ** years_out), 1.0)
-    llm_scale = np.array([
-        llm_mults.get(name, 0) for name in filt_ext["FacilityName"].values
-    ])
-    scale = np.where(llm_scale > 0, llm_scale, cagr_scale)
+    t22  = filt_ext["tox22"].fillna(0).values.astype(float)
+    rate = filt_ext["annual_rate"].fillna(0).values.astype(float)
+    scale = np.where(t22 > 0, ((1 + rate) ** (projection_year - 2022)), 1.0)
 
     weights = filt_ext["weight"].values * scale
     weights = np.clip(weights, 0, None)
@@ -628,46 +494,45 @@ with col2:
         clat, clon = clicked["lat"], clicked["lng"]
         risk = facility_idx.compute_location_risk(clat, clon)
 
-        # Color by score
         if risk.score < 30:
-            score_color, label = "#4ade80", "Low"
+            score_color, label = "#16a34a", "Low"
         elif risk.score < 60:
-            score_color, label = "#fbbf24", "Moderate"
+            score_color, label = "#d97706", "Moderate"
         else:
-            score_color, label = "#f87171", "High"
+            score_color, label = "#dc2626", "High"
 
         st.markdown(f"""
-        <div style="background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;">
-          <p style="font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#38bdf8; margin:0 0 0.3rem 0;">
+        <div style="background:#ffffff; border:1px solid #e2eaf2; border-radius:12px; padding:0.8rem; margin-bottom:0.8rem; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+          <p style="font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:#64748b; margin:0 0 0.3rem 0;">
             Location Risk · {clat:.4f}, {clon:.4f}
           </p>
           <div style="display:flex; align-items:baseline; gap:0.5rem; margin-bottom:0.6rem;">
             <span style="font-size:1.8rem; font-weight:800; color:{score_color};">{risk.score}</span>
             <span style="font-size:0.75rem; color:{score_color}; font-weight:600;">{label}</span>
-            <span style="font-size:0.65rem; color:#4a6080;">/ 100</span>
+            <span style="font-size:0.65rem; color:#94a3b8;">/ 100</span>
           </div>
           <table style="font-size:0.72rem; border-collapse:collapse; width:100%;">
-            <tr><td style="color:#8fadc7; padding:2px 0;">Industrial Facilities</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.facility_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">30%</td></tr>
-            <tr><td style="color:#8fadc7; padding:2px 0;">Stream Contamination</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.downstream_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">20%</td></tr>
-            <tr><td style="color:#8fadc7; padding:2px 0;">Wastewater Plants</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.wastewater_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">25%</td></tr>
-            <tr><td style="color:#8fadc7; padding:2px 0;">Drinking Water (SDWA)</td>
-                <td style="text-align:right; color:#e0eaff; font-weight:600;">{risk.sdwa_score}</td>
-                <td style="text-align:right; color:#4a6080; font-size:0.6rem; padding-left:4px;">25%</td></tr>
+            <tr><td style="color:#475569; padding:2px 0;">Industrial Facilities</td>
+                <td style="text-align:right; color:#0f172a; font-weight:600;">{risk.facility_score}</td>
+                <td style="text-align:right; color:#94a3b8; font-size:0.6rem; padding-left:4px;">30%</td></tr>
+            <tr><td style="color:#475569; padding:2px 0;">Stream Contamination</td>
+                <td style="text-align:right; color:#0f172a; font-weight:600;">{risk.downstream_score}</td>
+                <td style="text-align:right; color:#94a3b8; font-size:0.6rem; padding-left:4px;">20%</td></tr>
+            <tr><td style="color:#475569; padding:2px 0;">Wastewater Plants</td>
+                <td style="text-align:right; color:#0f172a; font-weight:600;">{risk.wastewater_score}</td>
+                <td style="text-align:right; color:#94a3b8; font-size:0.6rem; padding-left:4px;">25%</td></tr>
+            <tr><td style="color:#475569; padding:2px 0;">Drinking Water (SDWA)</td>
+                <td style="text-align:right; color:#0f172a; font-weight:600;">{risk.sdwa_score}</td>
+                <td style="text-align:right; color:#94a3b8; font-size:0.6rem; padding-left:4px;">25%</td></tr>
           </table>
-          <div style="margin-top:0.5rem; font-size:0.65rem; color:#4a6080; border-top:1px solid #1f2d3d; padding-top:0.4rem;">
+          <div style="margin-top:0.5rem; font-size:0.62rem; color:#94a3b8; border-top:1px solid #e2eaf2; padding-top:0.4rem;">
             {risk.facility_count} facilities · {risk.wastewater_plant_count} WW plants · {risk.sdwa_system_count} water systems nearby
           </div>
         </div>
         """, unsafe_allow_html=True)
 
         if not risk.top_contributors.empty:
-            st.markdown("<p style='font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin:0 0 0.3rem 0;'>Top Contributors</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:#64748b; margin:0 0 0.3rem 0;'>Top Contributors</p>", unsafe_allow_html=True)
             st.dataframe(
                 risk.top_contributors.rename(columns={
                     "FacilityName": "Facility",
@@ -680,13 +545,13 @@ with col2:
             )
     else:
         st.markdown(
-            "<div style='background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem;'>"
-            "<p style='font-size:0.75rem; color:#4a6080; margin:0;'>Click anywhere on the map to compute a location risk score.</p>"
+            "<div style='background:#ffffff; border:1px solid #e2eaf2; border-radius:12px; padding:0.8rem; margin-bottom:0.8rem;'>"
+            "<p style='font-size:0.8rem; color:#64748b; margin:0;'>Click anywhere on the map to compute a location risk score.</p>"
             "</div>",
             unsafe_allow_html=True,
         )
 
-    st.markdown("<p style='font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin-bottom:0.4rem;'>Top 10 Facilities</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:#64748b; margin-bottom:0.4rem;'>Top 10 Facilities</p>", unsafe_allow_html=True)
     st.dataframe(
         filtered.nlargest(10, "risk_score")[["FacilityName", "County", "risk_score"]]
         .rename(columns={"FacilityName": "Facility", "risk_score": "Score"})
@@ -695,45 +560,35 @@ with col2:
         hide_index=True,
     )
 
-    st.markdown("<p style='font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin:1rem 0 0.2rem;'>Water Release Pathways</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:#64748b; margin:1rem 0 0.2rem;'>Water Release Pathways</p>", unsafe_allow_html=True)
 
     direct_pct = rel_stats["direct_lbs"] / rel_stats["water_lbs"] * 100
     potw_pct   = rel_stats["potw_lbs"]   / rel_stats["water_lbs"] * 100
 
-    # Highlight selected pathway
-    direct_color = "#0ea5e9" if pathway in ("Both", "Direct Water")  else "#1f2d3d"
-    potw_color   = "#0ea5e9" if pathway in ("Both", "POTW Transfer") else "#1f2d3d"
+    direct_color = "#0ea5e9" if pathway in ("Both", "Direct Water")  else "#e2eaf2"
+    potw_color   = "#0ea5e9" if pathway in ("Both", "POTW Transfer") else "#e2eaf2"
 
     st.markdown(f"""
     <div style="font-size:0.78rem; margin-bottom:0.8rem;">
       <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-        <span style="color:#a8c4e0;">Direct Water</span>
-        <span style="color:#e0eaff; font-weight:600;">{rel_stats['direct_lbs']/1e9:.1f}B lbs ({direct_pct:.0f}%)</span>
+        <span style="color:#475569;">Direct Water</span>
+        <span style="color:#0f172a; font-weight:600;">{rel_stats['direct_lbs']/1e9:.1f}B lbs ({direct_pct:.0f}%)</span>
       </div>
-      <div style="background:#1f2d3d; border-radius:3px; height:6px; margin-bottom:10px;">
+      <div style="background:#e2eaf2; border-radius:3px; height:6px; margin-bottom:10px;">
         <div style="background:{direct_color}; width:{direct_pct:.0f}%; height:6px; border-radius:3px;"></div>
       </div>
       <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-        <span style="color:#a8c4e0;">POTW Transfer</span>
-        <span style="color:#e0eaff; font-weight:600;">{rel_stats['potw_lbs']/1e9:.1f}B lbs ({potw_pct:.0f}%)</span>
+        <span style="color:#475569;">POTW Transfer</span>
+        <span style="color:#0f172a; font-weight:600;">{rel_stats['potw_lbs']/1e9:.1f}B lbs ({potw_pct:.0f}%)</span>
       </div>
-      <div style="background:#1f2d3d; border-radius:3px; height:6px;">
+      <div style="background:#e2eaf2; border-radius:3px; height:6px;">
         <div style="background:{potw_color}; width:{potw_pct:.0f}%; height:6px; border-radius:3px;"></div>
       </div>
     </div>
-    <div style="font-size:0.68rem; color:#4a6080; border-top:1px solid #1f2d3d; padding-top:0.5rem;">
-      Pathway weight mult: <b style="color:#38bdf8;">{pw["weight_mult"]:.2f}×</b><br>
-      TEF toxic load: <b style="color:#38bdf8;">{rel_stats['toxic_load']:.3f}</b> (lb·TEF units)
+    <div style="font-size:0.65rem; color:#94a3b8; border-top:1px solid #e2eaf2; padding-top:0.5rem;">
+      TEF toxic load: <b style="color:#475569;">{rel_stats['toxic_load']:.3f}</b> lb·TEF units
     </div>
     """, unsafe_allow_html=True)
-
-    st.markdown("<p style='font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:#38bdf8; margin:1rem 0 0.4rem;'>Score Distribution</p>", unsafe_allow_html=True)
-    st.bar_chart(
-        filtered[filtered["risk_score"] > 0]["risk_score"]
-        .value_counts(bins=10)
-        .sort_index(),
-        color="#0ea5e9",
-    )
 
 top3 = filtered.nlargest(3, "risk_score")[["FacilityName", "County", "risk_score"]]
 top3_text = "; ".join(
@@ -742,54 +597,41 @@ top3_text = "; ".join(
 )
 
 # ---------------------------------------------------------------------------
-# Future risk summary + year input
+# AI Synopsis
 # ---------------------------------------------------------------------------
 
-def llm_year_summary(year, trends, top3_text, client):
+st.markdown("<hr style='margin: 1.5rem 0;'>", unsafe_allow_html=True)
+st.markdown("<p style='font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:#0369a1; font-weight:600;'>Risk Projection Synopsis</p>", unsafe_allow_html=True)
+
+custom_year = st.number_input("Year", min_value=2023, max_value=2050, value=int(projection_year) if is_future else 2030, step=1)
+
+summary_key = f"proj_summary_{custom_year}"
+if summary_key not in st.session_state:
     future_ctx = build_future_context(
-        f"What is the projected water contamination risk for Connecticut in {year}?",
+        f"What is the projected water contamination risk for Connecticut in {custom_year}?",
         trends,
     )
-    prompt = f"""You are a water contamination risk analyst for Connecticut.
-{future_ctx}
-Top facilities by current risk: {top3_text}
+    prompt = f"""Connecticut water contamination risk analyst. Top facilities: {top3_text}. {future_ctx}
+In 2 sentences, summarize the {custom_year} outlook for Connecticut water contamination risk."""
+    with st.spinner(f"Generating synopsis for {custom_year}…"):
+        try:
+            resp = llm_client.chat.completions.create(
+                model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=100,
+            )
+            st.session_state[summary_key] = resp.choices[0].message.content
+        except Exception as e:
+            st.session_state[summary_key] = f"Could not generate synopsis: {e}"
 
-In 2-3 sentences, summarize the projected water contamination outlook for Connecticut in {year}. Mention the most concerning counties or facilities and what the trend implies."""
-    try:
-        resp = client.chat.completions.create(
-            model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=200,
-        )
-        return resp.choices[0].message.content
-    except Exception as e:
-        return f"Could not generate summary: {e}"
-
-
-st.markdown("<hr style='margin: 1.5rem 0;'>", unsafe_allow_html=True)
-st.markdown("<p style='font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:#38bdf8;'>Risk Projection</p>", unsafe_allow_html=True)
-
-proj_col1, proj_col2 = st.columns([1, 3])
-with proj_col1:
-    custom_year = st.number_input("Enter any year", min_value=2023, max_value=2100, value=int(projection_year) if is_future else 2030, step=1)
-    run_proj = st.button("Predict")
-
-with proj_col2:
-    summary_key = f"proj_summary_{custom_year}"
-    if run_proj or (is_future and projection_year == custom_year and summary_key not in st.session_state):
-        with st.spinner(f"Generating outlook for {custom_year}…"):
-            st.session_state[summary_key] = llm_year_summary(custom_year, trends, top3_text, llm_client)
-    if summary_key in st.session_state:
-        st.markdown(
-            f"<div style='background:#0d1f2d; border:1px solid #1f2d3d; border-radius:8px; "
-            f"padding:1rem; font-size:0.85rem; color:#a8c4e0;'>"
-            f"<b style='color:#38bdf8;'>{custom_year} outlook</b><br><br>"
-            f"{st.session_state[summary_key]}</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown("<p style='color:#4a6080; font-size:0.85rem;'>Enter a year and click Predict to generate an LLM risk outlook.</p>", unsafe_allow_html=True)
+st.markdown(
+    f"<div style='background:#ffffff; border:1px solid #e2eaf2; border-radius:12px; "
+    f"padding:1rem; font-size:0.85rem; color:#0f172a; box-shadow:0 1px 6px rgba(0,0,0,0.05);'>"
+    f"<b style='color:#0369a1;'>{custom_year} outlook</b><br><br>"
+    f"{st.session_state[summary_key]}</div>",
+    unsafe_allow_html=True,
+)
 
 # ---------------------------------------------------------------------------
 # LLaMA risk assistant
@@ -797,10 +639,10 @@ with proj_col2:
 
 st.markdown("<hr style='margin: 1.5rem 0;'>", unsafe_allow_html=True)
 st.markdown("""
-<p style='font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:#38bdf8;'>
+<p style='font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:#0369a1; font-weight:600;'>
   Risk Assistant
 </p>
-<p style='font-size:0.85rem; color:#8fadc7; margin-top:0.2rem;'>
+<p style='font-size:0.85rem; color:#64748b; margin-top:0.2rem;'>
   Ask anything about the current map, facilities, or conditions.
 </p>
 """, unsafe_allow_html=True)
@@ -820,8 +662,7 @@ system_prompt = f"""You are a water contamination risk analyst for Connecticut.
 Current map state:
 - Viewing year: {projection_year} {"(projected)" if is_future else "(current data)"}
 - Pathway: {pathway}
-- Season: {season}, Rainfall: {rainfall} in/month, Temp: {temp_f}°F, Soil: {soil_type}
-- Risk multiplier: {combined_mult:.2f}x
+- Rainfall: {rainfall} in/month
 - Facilities shown: {len(filtered)}
 - Top facilities by risk: {top3_text}
 {location_ctx}
@@ -831,12 +672,12 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 for msg in st.session_state.chat_history:
-    role_color = "#e0eaff" if msg["role"] == "user" else "#38bdf8"
-    role_label = "You" if msg["role"] == "user" else "LLaMA"
+    role_label = "You" if msg["role"] == "user" else "Assistant"
+    role_color = "#0369a1" if msg["role"] == "user" else "#475569"
     st.markdown(
         f"<div style='margin:0.4rem 0; font-size:0.85rem;'>"
         f"<span style='color:{role_color}; font-weight:600;'>{role_label}:</span> "
-        f"<span style='color:#a8c4e0;'>{msg['content']}</span></div>",
+        f"<span style='color:#0f172a;'>{msg['content']}</span></div>",
         unsafe_allow_html=True,
     )
 
